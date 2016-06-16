@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1466020515 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
+1466063660 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
 	<iostream>
 	<vector>
 	<sstream>
@@ -331,14 +331,15 @@
 	"begin_code.h"
 	"close_code.h"
 
-1465969269 c:\users\alesito\documents\programacion\cpp\loteria_cliente\tablero.h
+1466064474 c:\users\alesito\documents\programacion\cpp\loteria_cliente\tablero.h
 	<vector>
+	<set>
 	"Casilla.h"
 
-1465970505 c:\users\alesito\documents\programacion\cpp\loteria_cliente\casilla.h
+1466064474 c:\users\alesito\documents\programacion\cpp\loteria_cliente\casilla.h
 	"Imagen.h"
 
-1465890528 c:\users\alesito\documents\programacion\cpp\loteria_cliente\imagen.h
+1466064474 c:\users\alesito\documents\programacion\cpp\loteria_cliente\imagen.h
 	<iostream>
 	<SDL.h>
 	<SDL_image.h>

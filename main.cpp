@@ -39,7 +39,7 @@ int main( int argc, char **argv ) {
     SDL_Texture * texturaCartaLanzada;
     SDL_Rect regionCartaLanzada = { 515, 70, 228, 350 };
 
-    texturaCartaLanzada = SDL_CreateTextureFromSurface( renderer, cartas[rand() % 54]->dameImagen() );
+    texturaCartaLanzada = SDL_CreateTextureFromSurface( renderer, cartas[0]->dameImagenSurface() );
     SDL_RenderCopy( renderer, texturaCartaLanzada, nullptr, &regionCartaLanzada );
     SDL_RenderPresent( renderer );
 
@@ -47,19 +47,23 @@ int main( int argc, char **argv ) {
 
     TTF_Font* arial = TTF_OpenFont( "arial.ttf", 50 );
     SDL_Color negro = {0, 0, 0, 0};
-    SDL_Surface* regionTituloLanzamiento = TTF_RenderText_Solid( arial, "Lanzada",negro );
-    SDL_Texture* texturaTituloLanzamiento = SDL_CreateTextureFromSurface( renderer, regionTituloLanzamiento );
-    SDL_Rect marcoTituloLanzamiento= {528,20,200,40};
+    SDL_Surface* regionTituloLanzamiento = TTF_RenderText_Solid( arial, "Lanzada", negro );
+    SDL_Texture* texturaTituloLanzamiento = SDL_CreateTextureFromSurface( renderer,
+                                            regionTituloLanzamiento );
+    SDL_Rect marcoTituloLanzamiento = {528, 20, 200, 40};
     SDL_RenderCopy( renderer, texturaTituloLanzamiento, nullptr, &marcoTituloLanzamiento );
 
-    SDL_Rect r= { 528, 550, 200, 50};
+    SDL_Rect r = { 528, 550, 200, 50};
     SDL_SetRenderDrawColor( renderer, 0, 255, 255, 255 );
     SDL_RenderFillRect( renderer, &r );
-    SDL_Surface* q1 = TTF_RenderText_Solid( arial, "  Loteria  ",negro );
+    SDL_Surface* q1 = TTF_RenderText_Solid( arial, "  Loteria  ", negro );
     SDL_Texture* q2 = SDL_CreateTextureFromSurface( renderer, q1 );
     SDL_RenderCopy( renderer, q2, nullptr, &r );
 
     SDL_RenderPresent( renderer );
+    tablero->agregarCartaLanzada(1);
+    tablero->agregarCartaLanzada(2);
+    tablero->agregarCartaLanzada(3);
 
     while ( !quit ) {
         SDL_WaitEvent( &event );
@@ -68,9 +72,15 @@ int main( int argc, char **argv ) {
         case SDL_QUIT:
             quit = true;
             break;
+        case SDL_MOUSEBUTTONDOWN:
+            int x, y;
+            SDL_GetMouseState( &x, &y );
+            tablero->verficaClic( x, y, renderer );
+            break;
         }
+        SDL_RenderPresent( renderer );
     }
-    TTF_CloseFont(arial);
+    TTF_CloseFont( arial );
     SDL_DestroyTexture( texturaCartaLanzada );
     SDL_DestroyRenderer( renderer );
     SDL_DestroyWindow( window );
