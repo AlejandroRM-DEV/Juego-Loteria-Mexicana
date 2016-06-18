@@ -8,6 +8,8 @@
 #define VENTANA_ALTO 680
 #define VENTANA_ANCHO 800
 
+#include "ServerPruebaInterfaz.h"
+
 using namespace std;
 
 vector<Imagen*> generarCartas( );
@@ -55,19 +57,13 @@ int main( int argc, char **argv ) {
     /**
     *  iniciamos un nuevo juego, notificamos estar listos y recibimos ids de cartas
     */
+    MiniServidor serv;  // Borrar despues
     do {
-        tablero->reiniciar( pruebaSeleccionados() );
-
-        texturaCartaLanzada = SDL_CreateTextureFromSurface( renderer,
-                                            cartas[0]->dameImagenSurface() );
-        SDL_RenderCopy( renderer, texturaCartaLanzada, nullptr, &rectCartaLanzada );
-        tablero->agregarCartaLanzada( 1 );
-        tablero->agregarCartaLanzada( 2 );
-        tablero->agregarCartaLanzada( 3 );
-
-        SDL_RenderPresent( renderer );
+        tablero->reiniciar( serv.pruebaSeleccionados() );
+        serv.iniciarReloj();
         quit = false;
         while ( !quit ) {
+            SDL_RenderPresent( renderer );
             while ( SDL_PollEvent( &event ) ) {
                 switch ( event.type ) {
                 case SDL_QUIT:
@@ -82,10 +78,12 @@ int main( int argc, char **argv ) {
                     break;
                 }
             }
-            /**
-            *    Verificar si ya se lanzo una nueva carta
-            */
-            SDL_RenderPresent( renderer );
+            if( serv.hayQueLeer() ) {
+                int id = serv.lanzar();
+                texturaCartaLanzada = SDL_CreateTextureFromSurface( renderer, cartas[id - 1]->imagenSurface() );
+                tablero->agregarCartaLanzada( id );
+                SDL_RenderCopy( renderer, texturaCartaLanzada, nullptr, &rectCartaLanzada );
+            }
         }
     } while ( !quit );
 
@@ -112,8 +110,3 @@ vector<Imagen*> generarCartas( ) {
     return cartas;
 }
 
-int* pruebaSeleccionados() {
-    int *seleccionados = new int[16] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-
-    return seleccionados;
-}

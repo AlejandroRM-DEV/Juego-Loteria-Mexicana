@@ -40,7 +40,7 @@ public:
             }
         }
     }
-    SDL_Surface* dameImagenSurface() {
+    SDL_Surface* imagenSurface() {
         return img;
     }
     char dameID() {

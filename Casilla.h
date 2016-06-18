@@ -41,7 +41,7 @@ public:
 
         this->marcada  = false;
         this->imagen = imagen->copia();
-        this->textura = SDL_CreateTextureFromSurface( renderer, imagen->dameImagenSurface() );
+        this->textura = SDL_CreateTextureFromSurface( renderer, imagen->imagenSurface() );
         SDL_RenderCopy( renderer, textura, nullptr, &region );
     }
     bool estaMarcada() {
@@ -57,9 +57,9 @@ public:
         imagen->escalaGris();
         SDL_DestroyTexture( textura );
         textura = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC,
-                                     imagen->dameImagenSurface()->w, imagen->dameImagenSurface()->h );
-        SDL_UpdateTexture( textura, nullptr, imagen->dameImagenSurface()->pixels,
-                           imagen->dameImagenSurface()->w * sizeof( Uint32 ) );
+                                     imagen->imagenSurface()->w, imagen->imagenSurface()->h );
+        SDL_UpdateTexture( textura, nullptr, imagen->imagenSurface()->pixels,
+                           imagen->imagenSurface()->w * sizeof( Uint32 ) );
         SDL_RenderCopy( renderer, textura, nullptr, &region );
         marcada = true;
     }
