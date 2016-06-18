@@ -10,37 +10,50 @@ class Casilla {
 private:
     int x;
     int y;
-    SDL_Texture * textura;
-    SDL_Rect region;
-    Imagen* imagen;
+    int x2;
+    int y2;
     bool marcada;
+    Imagen* imagen;
+    SDL_Rect region;
+    SDL_Texture * textura;
+    SDL_Renderer * renderer;
 
 public:
-    Casilla( int x, int y, Imagen* imagen, SDL_Renderer * renderer ) {
+    Casilla( int x, int y, SDL_Renderer * renderer ) {
         this->x = x;
         this->y = y;
-        this->marcada  = false;
-        this->imagen = imagen->copia();
+        this->x2 = x + CASILLA_ANCHO;
+        this->y2 = y + CASILLA_ALTO;
         this->region = { x, y, CASILLA_ANCHO, CASILLA_ALTO };
-        this->textura = SDL_CreateTextureFromSurface( renderer, imagen->dameImagenSurface() );
-        SDL_RenderCopy( renderer, textura, nullptr, &region );
+        this->renderer = renderer;
+        this->imagen = nullptr;
     }
+
     ~Casilla() {
         SDL_DestroyTexture( textura );
         delete imagen;
     }
-    bool estaMarcada(){
+    void reiniciar( Imagen* imagen ) {
+        if( this->imagen != nullptr ) {
+            delete imagen;
+            SDL_DestroyTexture( textura );
+        }
+
+        this->marcada  = false;
+        this->imagen = imagen->copia();
+        this->textura = SDL_CreateTextureFromSurface( renderer, imagen->dameImagenSurface() );
+        SDL_RenderCopy( renderer, textura, nullptr, &region );
+    }
+    bool estaMarcada() {
         return marcada;
     }
-    char idCarta(){
+    char idCarta() {
         return imagen->dameID();
     }
-    bool validaClic(int xp, int yp){
-        int x2 = x + CASILLA_ANCHO;
-        int y2 = y + CASILLA_ALTO;
-        return (x<= xp && xp < x2) && (y<= yp && yp < y2);
+    bool validaClic( int xp, int yp ) {
+        return ( x <= xp && xp < x2 ) && ( y <= yp && yp < y2 );
     }
-    void marcar( SDL_Renderer * renderer ) {
+    void marcar( ) {
         imagen->escalaGris();
         SDL_DestroyTexture( textura );
         textura = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC,
