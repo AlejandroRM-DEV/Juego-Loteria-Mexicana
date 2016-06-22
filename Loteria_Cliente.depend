@@ -1,8 +1,7 @@
 # depslib dependency file v1.0
-1466273090 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
+1466576575 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
 	<iostream>
 	<vector>
-	<sstream>
 	"Boton.h"
 	"Tablero.h"
 	"ServerPruebaInterfaz.h"
@@ -332,16 +331,17 @@
 	"begin_code.h"
 	"close_code.h"
 
-1466272762 c:\users\alesito\documents\programacion\cpp\loteria_cliente\tablero.h
+1466576437 c:\users\alesito\documents\programacion\cpp\loteria_cliente\tablero.h
 	<iostream>
+	<sstream>
 	<vector>
 	<set>
 	"Casilla.h"
 
-1466270762 c:\users\alesito\documents\programacion\cpp\loteria_cliente\casilla.h
+1466575436 c:\users\alesito\documents\programacion\cpp\loteria_cliente\casilla.h
 	"Imagen.h"
 
-1466270762 c:\users\alesito\documents\programacion\cpp\loteria_cliente\imagen.h
+1466576689 c:\users\alesito\documents\programacion\cpp\loteria_cliente\imagen.h
 	<iostream>
 	<SDL.h>
 	<SDL_image.h>
@@ -355,15 +355,15 @@
 	<math.h>
 	"SDL.h"
 
-1466238758 c:\users\alesito\documents\programacion\cpp\loteria_cliente\boton.h
+1466555767 c:\users\alesito\documents\programacion\cpp\loteria_cliente\boton.h
 	<SDL.h>
 	"SDL_ttf.h"
 
-1466274152 c:\users\alesito\documents\programacion\cpp\loteria_cliente\serverpruebainterfaz.h
+1466576157 c:\users\alesito\documents\programacion\cpp\loteria_cliente\serverpruebainterfaz.h
 	<iostream>
 	<vector>
-	<sstream>
 	<algorithm>
+	<random>
 	<sys/time.h>
 	<cstdlib>
 

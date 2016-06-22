@@ -9,7 +9,7 @@
 using namespace std;
 
 class Imagen {
-    char id;
+    int id;
     string ruta;
     SDL_Surface * img;
 public:
@@ -21,9 +21,7 @@ public:
     ~Imagen() {
         SDL_FreeSurface( img );
     }
-    Imagen* copia() {
-        return new Imagen( id, ruta );
-    }
+
     void escalaGris() {
         SDL_Surface * colorImg = img;
         img = SDL_ConvertSurfaceFormat( img, SDL_PIXELFORMAT_ARGB8888, 0 );
@@ -43,8 +41,11 @@ public:
     SDL_Surface* imagenSurface() {
         return img;
     }
-    char dameID() {
-        return id;
+    int dameID() {
+        return this->id;
+    }
+    string dameRuta() {
+        return this->ruta;
     }
 };
 

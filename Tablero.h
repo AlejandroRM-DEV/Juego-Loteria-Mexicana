@@ -2,6 +2,7 @@
 #define TABLERO_H_INCLUDED
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <set>
 
@@ -12,14 +13,12 @@ using namespace std;
 class Tablero {
 private:
     vector<vector<Casilla*>> tablero{4, vector<Casilla*>( 4 ) };
-    vector<Imagen*> cartas;
     set<char> lanzadas;
     SDL_Renderer * renderer;
 
 public:
-    Tablero( vector<Imagen*>& cartas, SDL_Renderer * renderer ) {
+    Tablero( SDL_Renderer * renderer ) {
         this->renderer = renderer;
-        this->cartas = cartas;
         for( int i = 0; i < 4; i++ ) {
             for( int j = 0; j < 4; j++ ) {
                 tablero[i][j] = new Casilla( 20 + ( i * CASILLA_ANCHO ), 20 + ( j * CASILLA_ALTO ),
@@ -39,7 +38,10 @@ public:
         lanzadas.clear();
         for( int i = 0; i < 4; i++ ) {
             for( int j = 0; j < 4; j++ ) {
-                tablero[i][j]->reiniciar( cartas[seleccionadas[indiceSel++] - 1] );
+                stringstream ss;
+                ss << "img/cartas/" << seleccionadas[indiceSel] << ".JPG";
+                tablero[i][j]->reiniciar( new Imagen( seleccionadas[indiceSel], ss.str() ) );
+                indiceSel++;
             }
         }
     }

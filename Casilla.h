@@ -31,17 +31,18 @@ public:
 
     ~Casilla() {
         SDL_DestroyTexture( textura );
-        delete imagen;
+        if( this->imagen != nullptr ) {
+            delete this->imagen;
+        }
     }
     void reiniciar( Imagen* imagen ) {
         if( this->imagen != nullptr ) {
-            delete imagen;
+            delete this->imagen;
             SDL_DestroyTexture( textura );
         }
-
         this->marcada  = false;
-        this->imagen = imagen->copia();
-        this->textura = SDL_CreateTextureFromSurface( renderer, imagen->imagenSurface() );
+        this->imagen = imagen;
+        this->textura = SDL_CreateTextureFromSurface( renderer, this->imagen->imagenSurface() );
         SDL_RenderCopy( renderer, textura, nullptr, &region );
     }
     bool estaMarcada() {
