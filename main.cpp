@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 #include "Boton.h"
 #include "Tablero.h"
@@ -72,20 +73,23 @@ SDL_Texture* renderTexto( const string &texto, SDL_Color color, int tamano,
 }
 
 int pantallaInicio( SDL_Renderer *renderer ) {
-    SDL_Texture *texturaTitulo, *textura, *texturaFondo, *texturaImgTitulo;
+    SDL_Texture *textoServidor, *textoDirServidor, *texturaFondo, *texturaTitulo, *texturaError;
     SDL_Event event;
     int servidorfd = -1;
     string dirServidor = "127.0.0.1";
-    bool terminado = false;
+    bool error = false, terminado = false;
 
-    texturaTitulo = renderTexto( "Dirección del servidor", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
-    Imagen* img = new Imagen( -1, "img/presentacion.JPG" );
+    textoServidor = renderTexto( "Dirección del servidor", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
+    Imagen* imgFondo = new Imagen( -1, "img/presentacion.JPG" );
     Imagen* imgTitulo = new Imagen( -1, "img/titulo.PNG" );
-    texturaFondo = SDL_CreateTextureFromSurface( renderer, img->imagenSurface() );
-    texturaImgTitulo = SDL_CreateTextureFromSurface( renderer, imgTitulo->imagenSurface() );
+    texturaFondo = SDL_CreateTextureFromSurface( renderer, imgFondo->imagenSurface() );
+    texturaTitulo = SDL_CreateTextureFromSurface( renderer, imgTitulo->imagenSurface() );
 
     SDL_Rect hint = { 0, 300, 800, 80 };
+    int x = 0;
 
+    std::chrono::steady_clock::time_point tbegin, tend;
+    tbegin = std::chrono::steady_clock::now();
     while ( !terminado ) {
         SDL_StartTextInput();
         while ( SDL_PollEvent( &event ) ) {
@@ -99,8 +103,12 @@ int pantallaInicio( SDL_Renderer *renderer ) {
                         dirServidor.pop_back();
                     }
                 } else if( event.key.keysym.sym == SDLK_RETURN ) {
-                    terminado = true;
-                    servidorfd = 1;
+                    if( dirServidor == "ERROR" ) {
+                        error = true;
+                    } else {
+                        terminado = true;
+                        servidorfd = 1;
+                    }
                 }
                 break;
             case SDL_TEXTINPUT:
@@ -110,28 +118,36 @@ int pantallaInicio( SDL_Renderer *renderer ) {
                 dirServidor.append( event.edit.text );
                 break;
             }
+            textoDirServidor = renderTexto( dirServidor.c_str(), SDL_Color { 0, 0, 0, 255 }, 48, renderer );
+        }
 
+        tend = std::chrono::steady_clock::now();
+        if( std::chrono::duration_cast<std::chrono::microseconds>( tend - tbegin ).count() >= 20000 ) {
+            tbegin = std::chrono::steady_clock::now();
+            x = ( ( ++x ) < 800 ) ? x : 0;
             SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
             SDL_RenderClear( renderer );
-
-            textura = renderTexto( dirServidor.c_str(), SDL_Color { 0, 0, 0, 255 }, 48, renderer );
-
-            renderTexturaEnRect( texturaFondo, renderer, 0, 73, 800, 534 );
-            renderTexturaEnRect( texturaImgTitulo, renderer, 0, 10, 800, 96 );
+            renderTexturaEnRect( texturaFondo, renderer, x, 73, 800, 534 );
+            renderTexturaEnRect( texturaFondo, renderer, x - 800, 73, 800, 534 );
+            renderTexturaEnRect( texturaTitulo, renderer, 0, 10, 800, 96 );
             SDL_RenderFillRect( renderer, &hint );
-            renderTexturaEnRect( texturaTitulo, renderer, 268, 300, 264, 40 );
-            renderTexturaEnRect( textura, renderer, ( 400 - dirServidor.size() * 6 ), 340,
+            renderTexturaEnRect( textoServidor, renderer, 268, 300, 264, 40 );
+            renderTexturaEnRect( textoDirServidor, renderer, ( 400 - dirServidor.size() * 6 ), 340,
                                  dirServidor.size() * 12, 40 );
+            if( error ) {
+                texturaError = renderTexto( "Error de conexión", SDL_Color { 0, 0, 0, 255 }, 28, renderer );
+                renderTexturaEnRect( texturaError, renderer, 0, 640, 18 * 7, 28 );
+            }
             SDL_RenderPresent( renderer );
         }
         SDL_StopTextInput();
     }
 
-    SDL_DestroyTexture( textura );
-    SDL_DestroyTexture( texturaTitulo );
+    SDL_DestroyTexture( textoDirServidor );
+    SDL_DestroyTexture( textoServidor );
     SDL_DestroyTexture( texturaFondo );
-    SDL_DestroyTexture( texturaImgTitulo );
-    delete img;
+    SDL_DestroyTexture( texturaTitulo );
+    delete imgFondo;
     delete imgTitulo;
     return servidorfd; // RETURN FD
 }
