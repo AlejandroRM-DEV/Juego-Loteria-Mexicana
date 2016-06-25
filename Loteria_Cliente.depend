@@ -1,7 +1,8 @@
 # depslib dependency file v1.0
-1466576575 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
+1466879217 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
 	<iostream>
 	<vector>
+	<chrono>
 	"Boton.h"
 	"Tablero.h"
 	"ServerPruebaInterfaz.h"

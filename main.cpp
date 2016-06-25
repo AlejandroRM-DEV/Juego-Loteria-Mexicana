@@ -73,16 +73,21 @@ SDL_Texture* renderTexto( const string &texto, SDL_Color color, int tamano,
 }
 
 int pantallaInicio( SDL_Renderer *renderer ) {
-    SDL_Texture *textoServidor, *textoDirServidor, *texturaFondo, *texturaTitulo, *texturaError;
+    SDL_Texture *textoServidor, *textoDirServidor, *texturaFondo1, *texturaFondo2, *texturaFondo3,
+                *texturaTitulo, *texturaError;
     SDL_Event event;
     int servidorfd = -1;
-    string dirServidor = "127.0.0.1";
+    string msjError, dirServidor = "127.0.0.1";
     bool error = false, terminado = false;
 
     textoServidor = renderTexto( "Dirección del servidor", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
-    Imagen* imgFondo = new Imagen( -1, "img/presentacion.JPG" );
+    Imagen* imgFondo1 = new Imagen( -1, "img/presentacion.JPG" );
+    Imagen* imgFondo2 = new Imagen( -1, "img/todas1.PNG" );
+    Imagen* imgFondo3 = new Imagen( -1, "img/todas2.PNG" );
     Imagen* imgTitulo = new Imagen( -1, "img/titulo.PNG" );
-    texturaFondo = SDL_CreateTextureFromSurface( renderer, imgFondo->imagenSurface() );
+    texturaFondo1 = SDL_CreateTextureFromSurface( renderer, imgFondo1->imagenSurface() );
+    texturaFondo2 = SDL_CreateTextureFromSurface( renderer, imgFondo2->imagenSurface() );
+    texturaFondo3 = SDL_CreateTextureFromSurface( renderer, imgFondo3->imagenSurface() );
     texturaTitulo = SDL_CreateTextureFromSurface( renderer, imgTitulo->imagenSurface() );
 
     SDL_Rect hint = { 0, 300, 800, 80 };
@@ -105,6 +110,7 @@ int pantallaInicio( SDL_Renderer *renderer ) {
                 } else if( event.key.keysym.sym == SDLK_RETURN ) {
                     if( dirServidor == "ERROR" ) {
                         error = true;
+                        msjError = "Aqui va el mensaje de error, si ocurre alguno";
                     } else {
                         terminado = true;
                         servidorfd = 1;
@@ -124,19 +130,21 @@ int pantallaInicio( SDL_Renderer *renderer ) {
         tend = std::chrono::steady_clock::now();
         if( std::chrono::duration_cast<std::chrono::microseconds>( tend - tbegin ).count() >= 20000 ) {
             tbegin = std::chrono::steady_clock::now();
-            x = ( ( ++x ) < 800 ) ? x : 0;
+            x = ( ( ++x ) < 2760 ) ? x : 0;
             SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
             SDL_RenderClear( renderer );
-            renderTexturaEnRect( texturaFondo, renderer, x, 73, 800, 534 );
-            renderTexturaEnRect( texturaFondo, renderer, x - 800, 73, 800, 534 );
+            renderTexturaEnRect( texturaFondo1, renderer, x, 73, 800, 535 );
+            renderTexturaEnRect( texturaFondo2, renderer, x - 980, 90, 980, 500 );
+            renderTexturaEnRect( texturaFondo3, renderer, x - 1960, 90, 980, 500 );
+            renderTexturaEnRect( texturaFondo1, renderer, x - 2760, 73, 800, 535 );
             renderTexturaEnRect( texturaTitulo, renderer, 0, 10, 800, 96 );
             SDL_RenderFillRect( renderer, &hint );
             renderTexturaEnRect( textoServidor, renderer, 268, 300, 264, 40 );
-            renderTexturaEnRect( textoDirServidor, renderer, ( 400 - dirServidor.size() * 6 ), 340,
-                                 dirServidor.size() * 12, 40 );
+            renderTexturaEnRect( textoDirServidor, renderer, ( 400 - dirServidor.size() * 7 ), 340,
+                                 dirServidor.size() * 14, 40 );
             if( error ) {
-                texturaError = renderTexto( "Error de conexión", SDL_Color { 0, 0, 0, 255 }, 28, renderer );
-                renderTexturaEnRect( texturaError, renderer, 0, 640, 18 * 7, 28 );
+                texturaError = renderTexto( msjError.c_str(), SDL_Color { 0, 0, 0, 255 }, 24, renderer );
+                renderTexturaEnRect( texturaError, renderer, 0, 650, msjError.size() * 10, 24 );
             }
             SDL_RenderPresent( renderer );
         }
@@ -145,9 +153,13 @@ int pantallaInicio( SDL_Renderer *renderer ) {
 
     SDL_DestroyTexture( textoDirServidor );
     SDL_DestroyTexture( textoServidor );
-    SDL_DestroyTexture( texturaFondo );
+    SDL_DestroyTexture( texturaFondo1 );
+    SDL_DestroyTexture( texturaFondo2 );
+    SDL_DestroyTexture( texturaFondo3 );
     SDL_DestroyTexture( texturaTitulo );
-    delete imgFondo;
+    delete imgFondo1;
+    delete imgFondo2;
+    delete imgFondo3;
     delete imgTitulo;
     return servidorfd; // RETURN FD
 }
