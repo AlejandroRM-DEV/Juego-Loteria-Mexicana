@@ -39,6 +39,7 @@
 		</Linker>
 		<Unit filename="Boton.h" />
 		<Unit filename="Casilla.h" />
+		<Unit filename="Credencial.h" />
 		<Unit filename="Imagen.h" />
 		<Unit filename="ServerPruebaInterfaz.h" />
 		<Unit filename="Tablero.h" />

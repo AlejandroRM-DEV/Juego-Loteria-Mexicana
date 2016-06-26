@@ -1,8 +1,11 @@
 # depslib dependency file v1.0
-1466890237 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
+1466922206 source:c:\users\alesito\documents\programacion\cpp\loteria_cliente\main.cpp
 	<iostream>
 	<vector>
 	<chrono>
+	<iomanip>
+	<cstring>
+	<cstdint>
 	"Boton.h"
 	"Tablero.h"
 	"Credencial.h"
@@ -362,7 +365,7 @@
 	<SDL_ttf.h>
 	"Imagen.h"
 
-1466576157 c:\users\alesito\documents\programacion\cpp\loteria_cliente\serverpruebainterfaz.h
+1466920240 c:\users\alesito\documents\programacion\cpp\loteria_cliente\serverpruebainterfaz.h
 	<iostream>
 	<vector>
 	<algorithm>

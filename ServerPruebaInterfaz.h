@@ -54,6 +54,24 @@ public:
     int lanzar() {
         return rand() % 54 + 1;
     }
+
+    char* datosJugadores() {
+        char* datosJugadores = new char[sizeof( struct Jugadores  )];
+        struct Jugadores datos;
+
+        memset( datosJugadores, 0, sizeof( struct Jugadores  ) );
+        strcpy( datos.nombre1, "AlejandroR" );
+        datos.ganados1 = 0;
+        strcpy( datos.nombre2, "Jose" );
+        datos.ganados2 = 1;
+        strcpy( datos.nombre3, "Roberto" );
+        datos.ganados3 = 2;
+        strcpy( datos.nombre4, "Karla" );
+        datos.ganados4 = 3;
+
+        memcpy( datosJugadores, &datos, sizeof( struct Jugadores  ) );
+        return datosJugadores;
+    }
 };
 
 #endif // SERVERPRUEBAINTERFAZ_H_INCLUDED

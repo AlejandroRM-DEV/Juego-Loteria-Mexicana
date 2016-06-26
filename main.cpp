@@ -1,6 +1,9 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
+#include <iomanip> //Para formatear string
+#include <cstring>
+#include <cstdint> //int16_t
 
 #include "Boton.h"
 #include "Tablero.h"
@@ -9,15 +12,30 @@
 #define VENTANA_ALTO 680
 #define VENTANA_ANCHO 800
 
+struct Jugadores {
+    char nombre1[10];
+    int16_t ganados1;
+    char nombre2[10];
+    int16_t ganados2;
+    char nombre3[10];
+    int16_t ganados3;
+    char nombre4[10];
+    int16_t ganados4;
+};
+
 #include "ServerPruebaInterfaz.h"
 
 using namespace std;
 
+string formatoJugador( string nombre, int ganados );
 vector<Imagen*> generarCartas( );
 SDL_Texture* renderTexto( const string &texto, SDL_Color color, int tamano,
                           SDL_Renderer *renderer );
 void renderTexturaEnRect( SDL_Texture *texto, SDL_Renderer *renderer, int x, int y, int ancho,
                           int alto );
+void crearPuntajes( vector<SDL_Texture*>& texturasJugadores,  char* datosJugadores,
+                    string jugadorLocal, SDL_Renderer *renderer );
+SDL_Color selColorMarcador( const char* otro, const char* local );
 Credencial* pantallaInicio( SDL_Renderer *renderer );
 void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial );
 
@@ -123,7 +141,7 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
                             msjError = "Aqui va el mensaje de error, si ocurre alguno";
                         } else {
                             conectado = true;
-                            textoIngresado = "Jugador X";
+                            textoIngresado = "Jugador 00";
                             servidorfd = 1;
                         }
                     } else {
@@ -131,8 +149,16 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
                         *   El servidor validara que el nombre de usuario este disponible,
                         *   de ser asi establecer terminado = true; y retornar
                         */
-                        terminado = true;
-                        credencial = new Credencial( servidorfd, textoIngresado );
+                        if( textoIngresado.empty() ) {
+                            error = true;
+                            msjError = "Debe elegir un nombre de jugador";
+                        } else if( textoIngresado.size() > 10 ) {
+                            error = true;
+                            msjError = "Maximo 10 caracteres para el nombre de jugador";
+                        } else {
+                            terminado = true;
+                            credencial = new Credencial( servidorfd, textoIngresado );
+                        }
                     }
                 }
                 break;
@@ -189,12 +215,60 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
     return credencial;
 }
 
+string formatoJugador( string nombre, int ganados ) {
+    stringstream ss;
+    ss << nombre  << setw( 8 ) << setfill( '_' ) << ganados;
+    return ss.str();
+}
+
+SDL_Color selColorMarcador( const char* otro, const char* local ) {
+    return ( strcmp( otro, local ) == 0 ) ?
+           SDL_Color { 0, 0, 255,  SDL_ALPHA_OPAQUE }:
+           SDL_Color { 0, 0, 0, SDL_ALPHA_OPAQUE };
+}
+
+void crearPuntajes( vector<SDL_Texture*>& texturasJugadores,  char* datosJugadores,
+                    string jugadorLocal, SDL_Renderer *renderer ) {
+    struct Jugadores jugadores;
+    SDL_Color color;
+
+    /** Si llamos la funcion de nuevo, destruimos contenido de texturasJugadores **/
+    for( SDL_Texture* textura : texturasJugadores ) {
+        SDL_DestroyTexture( textura );
+    }
+
+    memcpy( &jugadores, datosJugadores, sizeof( Jugadores ) );
+    color = selColorMarcador( jugadores.nombre1, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre1, jugadores.ganados1 ).c_str(), color, 32, renderer )
+    );
+    color = selColorMarcador( jugadores.nombre2, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre2, jugadores.ganados2 ).c_str(), color, 32, renderer )
+    );
+    color = selColorMarcador( jugadores.nombre3, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre3, jugadores.ganados3 ).c_str(), color, 32, renderer )
+    );
+    color = selColorMarcador( jugadores.nombre4, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre4, jugadores.ganados4 ).c_str(), color, 32, renderer )
+    );
+
+    renderTexturaEnRect( texturasJugadores.at( 0 ), renderer, 508, 520, 240, 24 );
+    renderTexturaEnRect( texturasJugadores.at( 1 ), renderer, 508, 550, 240, 24 );
+    renderTexturaEnRect( texturasJugadores.at( 2 ), renderer, 508, 580, 240, 24 );
+    renderTexturaEnRect( texturasJugadores.at( 3 ), renderer, 508, 610, 240, 24 );
+}
+
 void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
     SDL_Texture *textura, *texturaCartaLanzada;
     SDL_Event event;
     Boton* btnLoteria;
     Tablero* tablero;
     vector<Imagen*> cartas;
+    vector<SDL_Texture*> texturasJugadores;
+    char* datosJugadores;
     bool terminado;
 
     /****/
@@ -207,17 +281,22 @@ void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
     tablero = new Tablero( renderer );
 
     SDL_SetRenderDrawColor( renderer, 224, 224, 224, SDL_ALPHA_OPAQUE );
-    btnLoteria = new Boton( 528, 550, 200, 50, "img/botonLoteria.PNG", renderer );
+    btnLoteria = new Boton( 528, 440, 200, 50, "img/botonLoteria.PNG", renderer );
 
     textura = renderTexto( "Lanzada", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
     renderTexturaEnRect( textura, renderer, 528, 20, 200, 40 );
+    MiniServidor serv;  // Borrar despues
 
     SDL_Rect rectCartaLanzada = { 515, 70, 228, 350 };
     SDL_SetRenderDrawColor( renderer, 224, 224, 224, SDL_ALPHA_OPAQUE );
 
-    MiniServidor serv;  // Borrar despues
     do {
         SDL_RenderFillRect( renderer, &rectCartaLanzada );
+        /**¨   Marcador   **/
+        datosJugadores = serv.datosJugadores();
+        crearPuntajes( texturasJugadores, datosJugadores, credencial->dameJugador(), renderer );
+        delete datosJugadores;
+        /***/
         tablero->reiniciar( serv.pruebaSeleccionados() );
         serv.iniciarReloj();
         terminado = false;
@@ -246,6 +325,9 @@ void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
         }
     } while ( !terminado );
 
+    for( SDL_Texture* textura : texturasJugadores ) {
+        SDL_DestroyTexture( textura );
+    }
     SDL_DestroyTexture( textura );
     SDL_DestroyTexture( texturaCartaLanzada );
     delete btnLoteria;
