@@ -18,13 +18,12 @@ public:
     Boton( int x, int y, int ancho, int alto, const char* ruta, SDL_Renderer * renderer ) {
         this->x = x;
         this->y = y;
+        this->ancho = ancho;
+        this->alto = alto;
         x2 = x + ancho;
         y2 = y + alto;
-        SDL_Rect r = { x, y, ancho, alto};
-        SDL_RenderFillRect( renderer, &r );
         img = new Imagen( -1, ruta );
         textura = SDL_CreateTextureFromSurface( renderer, img->imagenSurface() );
-        SDL_RenderCopy( renderer, textura, nullptr, &r  );
     }
     ~Boton() {
         SDL_DestroyTexture( textura );
@@ -33,6 +32,11 @@ public:
 
     bool validaClic( int xp, int yp ) {
         return ( x <= xp && xp < x2 ) && ( y <= yp && yp < y2 );
+    }
+
+    void render(SDL_Renderer * renderer ){
+        SDL_Rect r = { x, y, ancho, alto};
+        SDL_RenderCopy( renderer, textura, nullptr, &r  );
     }
 };
 

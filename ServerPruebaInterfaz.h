@@ -7,11 +7,11 @@
 #include <random>
 
 #include <sys/time.h>
-#include <cstdlib>
 
 class MiniServidor {
     vector<int> cartas;
     long long milisegundosActuales;
+    vector<int> arraylanzar;
 
 public:
     MiniServidor() {
@@ -33,6 +33,11 @@ public:
     }
 
     void iniciarReloj() {
+        mt19937 g( static_cast<uint32_t>( time( nullptr ) ) );
+        shuffle( cartas.begin(), cartas.end(), g );
+        for(int i: cartas){
+            arraylanzar.push_back(i);
+        }
         milisegundosActuales = milisegundos();
     }
 
@@ -44,7 +49,7 @@ public:
     }
 
     bool hayQueLeer() {
-        if( ( milisegundos() - milisegundosActuales ) >= 1000  ) {
+        if( ( milisegundos() - milisegundosActuales ) >= 1000 && !arraylanzar.empty() ) {
             milisegundosActuales = milisegundos();
             return true;
         }
@@ -52,7 +57,9 @@ public:
     }
 
     int lanzar() {
-        return rand() % 54 + 1;
+        int lanzada = arraylanzar.back();
+        arraylanzar.pop_back();
+        return lanzada;
     }
 
     char* datosJugadores() {

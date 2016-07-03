@@ -217,7 +217,7 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
 
 string formatoJugador( string nombre, int ganados ) {
     stringstream ss;
-    ss << nombre  << setw( 8 ) << setfill( '_' ) << ganados;
+    ss << nombre  << setw( 8 ) << setfill( '.' ) << ganados;
     return ss.str();
 }
 
@@ -236,6 +236,7 @@ void crearPuntajes( vector<SDL_Texture*>& texturasJugadores,  char* datosJugador
     for( SDL_Texture* textura : texturasJugadores ) {
         SDL_DestroyTexture( textura );
     }
+    texturasJugadores.clear();
 
     memcpy( &jugadores, datosJugadores, sizeof( Jugadores ) );
     color = selColorMarcador( jugadores.nombre1, jugadorLocal.c_str() );
@@ -262,42 +263,43 @@ void crearPuntajes( vector<SDL_Texture*>& texturasJugadores,  char* datosJugador
 }
 
 void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
-    SDL_Texture *textura, *texturaCartaLanzada;
+    SDL_Texture *texturaTxtLanzada, *texturaCartaLanzada, *texturaGanador, *texturaLoteria;
     SDL_Event event;
     Boton* btnLoteria;
     Tablero* tablero;
     vector<Imagen*> cartas;
     vector<SDL_Texture*> texturasJugadores;
     char* datosJugadores;
-    bool terminado;
+    bool terminado, salir;
 
-    /****/
-    cout << credencial->dameServidorfd() << " " << credencial->dameJugador() << endl;
-    /****/
     SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE  );
     SDL_RenderClear( renderer );
+    SDL_Rect rectCartaLanzada = { 515, 70, 228, 350 };
+    texturaTxtLanzada = renderTexto( "Lanzada", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
 
     cartas = generarCartas();
     tablero = new Tablero( renderer );
-
-    SDL_SetRenderDrawColor( renderer, 224, 224, 224, SDL_ALPHA_OPAQUE );
     btnLoteria = new Boton( 528, 440, 200, 50, "img/botonLoteria.PNG", renderer );
+    Imagen* imgLoteria = new Imagen( -1, "img/loteria.PNG" );
+    texturaLoteria = SDL_CreateTextureFromSurface( renderer, imgLoteria->imagenSurface() );
 
-    textura = renderTexto( "Lanzada", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
-    renderTexturaEnRect( textura, renderer, 528, 20, 200, 40 );
     MiniServidor serv;  // Borrar despues
 
-    SDL_Rect rectCartaLanzada = { 515, 70, 228, 350 };
-    SDL_SetRenderDrawColor( renderer, 224, 224, 224, SDL_ALPHA_OPAQUE );
-
+    salir = false;
     do {
+        //Boton
+        btnLoteria->render( renderer );
+        //Carta lanzada
+        SDL_SetRenderDrawColor( renderer, 224, 224, 224, SDL_ALPHA_OPAQUE );
+        renderTexturaEnRect( texturaTxtLanzada, renderer, 528, 20, 200, 40 );
         SDL_RenderFillRect( renderer, &rectCartaLanzada );
-        /**¨   Marcador   **/
+        // Marcador
         datosJugadores = serv.datosJugadores();
         crearPuntajes( texturasJugadores, datosJugadores, credencial->dameJugador(), renderer );
         delete datosJugadores;
-        /***/
+        //Tablero
         tablero->reiniciar( serv.pruebaSeleccionados() );
+        //Nueva partida
         serv.iniciarReloj();
         terminado = false;
         while ( !terminado ) {
@@ -305,6 +307,7 @@ void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
             while ( SDL_PollEvent( &event ) ) {
                 switch ( event.type ) {
                 case SDL_QUIT:
+                    salir = true;
                     terminado = true;
                     break;
                 case SDL_MOUSEBUTTONDOWN:
@@ -312,23 +315,44 @@ void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
                         cout << "Enviando al servidor info" << endl;
                     } else if( btnLoteria->validaClic( event.motion.x, event.motion.y ) ) {
                         cout << "clic en loteria" << endl;
+                        /*
+                            Validar localmente que estan marcadas todas antes de enviar informacion
+                            al servidor
+                        */
+                        terminado = true;
                     }
                     break;
                 }
             }
-            if( serv.hayQueLeer() ) {
+
+            if( terminado ) {
+                /*   Mostrar ganador */
+                SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
+                SDL_Rect hint = { 0, 0, 800, 680 };
+                SDL_RenderFillRect( renderer, &hint );
+                renderTexturaEnRect( texturaLoteria, renderer, 0, 200, 800, 180 );
+                texturaGanador  = renderTexto( "de AlejandroR",
+                                               SDL_Color { 0, 0, 0, 255 },
+                                               110,
+                                               renderer );
+                renderTexturaEnRect( texturaGanador, renderer, 180, 360, 440, 110 );
+                SDL_RenderPresent( renderer );
+                SDL_Delay( 5000 );
+                terminado = true;
+            } else if( serv.hayQueLeer() ) {
                 int id = serv.lanzar();
                 texturaCartaLanzada = SDL_CreateTextureFromSurface( renderer, cartas[id - 1]->imagenSurface() );
                 tablero->agregarCartaLanzada( id );
                 SDL_RenderCopy( renderer, texturaCartaLanzada, nullptr, &rectCartaLanzada );
             }
         }
-    } while ( !terminado );
+        SDL_RenderClear( renderer );
+    } while ( !salir );
 
     for( SDL_Texture* textura : texturasJugadores ) {
         SDL_DestroyTexture( textura );
     }
-    SDL_DestroyTexture( textura );
+    SDL_DestroyTexture( texturaTxtLanzada );
     SDL_DestroyTexture( texturaCartaLanzada );
     delete btnLoteria;
     delete tablero;
