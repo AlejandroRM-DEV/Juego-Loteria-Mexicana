@@ -28,8 +28,12 @@ struct Jugadores {
 static Imagen imgFondo1( -1, "img/presentacion.JPG" );
 static Imagen imgFondo2( -1, "img/todas1.PNG" );
 static Imagen imgFondo3( -1, "img/todas2.PNG" );
-static Imagen imgTitulo( -1, "img/titulo.PNG" );
-static Imagen imgLoteria( -1, "img/loteria.PNG" );
+static Imagen imgtxtTitulo( -1, "img/txt/titulo.PNG" );
+static Imagen imgtxtLoteria( -1, "img/txt/loteria.PNG" );
+static Imagen imgtxtEsperando( -1, "img/txt/esperando_jugadores.PNG" );
+static Imagen imgtxtNombre( -1, "img/txt/nombre_jugador.PNG" );
+static Imagen imgtxtLanzada( -1, "img/txt/lanzada.PNG" );
+static Imagen imgtxtServidor( -1, "img/txt/servidor.PNG" );
 
 using namespace std;
 
@@ -115,9 +119,54 @@ vector<SDL_Texture*> fondos( SDL_Renderer *renderer ) {
     texturas[0] = SDL_CreateTextureFromSurface( renderer, imgFondo1.imagenSurface() );
     texturas[1] = SDL_CreateTextureFromSurface( renderer, imgFondo2.imagenSurface() );
     texturas[2] = SDL_CreateTextureFromSurface( renderer, imgFondo3.imagenSurface() );
-    texturas[3] = SDL_CreateTextureFromSurface( renderer, imgTitulo.imagenSurface() );
+    texturas[3] = SDL_CreateTextureFromSurface( renderer, imgtxtTitulo.imagenSurface() );
     return texturas;
 }
+
+string formatoJugador( string nombre, int ganados ) {
+    stringstream ss;
+    ss << nombre  << setw( 8 ) << setfill( '_' ) << ganados;
+    return ss.str();
+}
+
+SDL_Color selColorMarcador( const char* otro, const char* local ) {
+    return ( strcmp( otro, local ) == 0 ) ?
+           SDL_Color { 0, 0, 255,  SDL_ALPHA_OPAQUE }:
+           SDL_Color { 0, 0, 0, SDL_ALPHA_OPAQUE };
+}
+
+void crearPuntajes( char* datosJugadores, string jugadorLocal, SDL_Renderer *renderer ) {
+    struct Jugadores jugadores;
+    vector<SDL_Texture*> texturasJugadores;
+    SDL_Color color;
+
+    memcpy( &jugadores, datosJugadores, sizeof( Jugadores ) );
+    color = selColorMarcador( jugadores.nombre1, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre1, jugadores.ganados1 ).c_str(), color, 32, renderer )
+    );
+    color = selColorMarcador( jugadores.nombre2, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre2, jugadores.ganados2 ).c_str(), color, 32, renderer )
+    );
+    color = selColorMarcador( jugadores.nombre3, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre3, jugadores.ganados3 ).c_str(), color, 32, renderer )
+    );
+    color = selColorMarcador( jugadores.nombre4, jugadorLocal.c_str() );
+    texturasJugadores.push_back(
+        renderTexto( formatoJugador( jugadores.nombre4, jugadores.ganados4 ).c_str(), color, 32, renderer )
+    );
+
+    renderTexturaEnRect( texturasJugadores.at( 0 ), renderer, 508, 520, 240, 24 );
+    renderTexturaEnRect( texturasJugadores.at( 1 ), renderer, 508, 550, 240, 24 );
+    renderTexturaEnRect( texturasJugadores.at( 2 ), renderer, 508, 580, 240, 24 );
+    renderTexturaEnRect( texturasJugadores.at( 3 ), renderer, 508, 610, 240, 24 );
+    for( SDL_Texture* textura : texturasJugadores ) {
+        SDL_DestroyTexture( textura );
+    }
+}
+
 
 Credencial* pantallaInicio( SDL_Renderer *renderer ) {
     SDL_Texture *texturaServidor, *texturaTextoIngresado, *textoJugador, *texturaError;
@@ -129,10 +178,9 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
     Credencial* credencial = nullptr;
     int servidorfd;
 
-    texturaServidor = renderTexto( "Dirección del servidor", SDL_Color { 0, 0, 0, 255 }, 48,
-                                   renderer );
-    textoJugador = renderTexto( "  Nombre del Jugador  ", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
-    SDL_Rect hint = { 0, 300, 800, 80 };
+    texturaServidor = SDL_CreateTextureFromSurface( renderer, imgtxtServidor.imagenSurface() );
+    textoJugador = SDL_CreateTextureFromSurface( renderer, imgtxtNombre.imagenSurface() );
+    SDL_Rect hint = { 0, 300, 800, 100 };
     error = terminado = conectado = false;
     textoIngresado = "127.0.0.1";
     tInicio = std::chrono::steady_clock::now();
@@ -153,7 +201,10 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
                         /**
                         *   Validar todos los errores al crear y establecer conexiones
                         */
-                        if( textoIngresado == "ERROR" ) {
+                        if( textoIngresado.empty() ) {
+                            error = true;
+                            msjError = "No se ingreso el nombre del host";
+                        } else if( textoIngresado == "ERROR" ) {
                             error = true;
                             msjError = "Aqui va el mensaje de error, si ocurre alguno";
                         } else {
@@ -198,11 +249,11 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
             fondoPantalla( texturasFondos, renderer );
             SDL_RenderFillRect( renderer, &hint );
             if( !conectado ) {
-                renderTexturaEnRect( texturaServidor, renderer, 268, 300, 264, 40 );
+                renderTexturaEnRect( texturaServidor, renderer, 0, 310, 800, 50 );
             } else {
-                renderTexturaEnRect( textoJugador, renderer, 268, 300, 264, 40 );
+                renderTexturaEnRect( textoJugador, renderer, 0, 310, 800, 50 );
             }
-            renderTexturaEnRect( texturaTextoIngresado, renderer, ( 400 - textoIngresado.size() * 7 ), 340,
+            renderTexturaEnRect( texturaTextoIngresado, renderer, ( 400 - textoIngresado.size() * 7 ), 360,
                                  textoIngresado.size() * 14, 40 );
             if( error ) {
                 texturaError = renderTexto( msjError.c_str(), SDL_Color { 0, 0, 0, 255 }, 24, renderer );
@@ -223,50 +274,6 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
     return credencial;
 }
 
-string formatoJugador( string nombre, int ganados ) {
-    stringstream ss;
-    ss << nombre  << setw( 8 ) << setfill( '.' ) << ganados;
-    return ss.str();
-}
-
-SDL_Color selColorMarcador( const char* otro, const char* local ) {
-    return ( strcmp( otro, local ) == 0 ) ?
-           SDL_Color { 0, 0, 255,  SDL_ALPHA_OPAQUE }:
-           SDL_Color { 0, 0, 0, SDL_ALPHA_OPAQUE };
-}
-
-void crearPuntajes( char* datosJugadores, string jugadorLocal, SDL_Renderer *renderer ) {
-    struct Jugadores jugadores;
-    vector<SDL_Texture*> texturasJugadores;
-    SDL_Color color;
-
-    memcpy( &jugadores, datosJugadores, sizeof( Jugadores ) );
-    color = selColorMarcador( jugadores.nombre1, jugadorLocal.c_str() );
-    texturasJugadores.push_back(
-        renderTexto( formatoJugador( jugadores.nombre1, jugadores.ganados1 ).c_str(), color, 32, renderer )
-    );
-    color = selColorMarcador( jugadores.nombre2, jugadorLocal.c_str() );
-    texturasJugadores.push_back(
-        renderTexto( formatoJugador( jugadores.nombre2, jugadores.ganados2 ).c_str(), color, 32, renderer )
-    );
-    color = selColorMarcador( jugadores.nombre3, jugadorLocal.c_str() );
-    texturasJugadores.push_back(
-        renderTexto( formatoJugador( jugadores.nombre3, jugadores.ganados3 ).c_str(), color, 32, renderer )
-    );
-    color = selColorMarcador( jugadores.nombre4, jugadorLocal.c_str() );
-    texturasJugadores.push_back(
-        renderTexto( formatoJugador( jugadores.nombre4, jugadores.ganados4 ).c_str(), color, 32, renderer )
-    );
-
-    renderTexturaEnRect( texturasJugadores.at( 0 ), renderer, 508, 520, 240, 24 );
-    renderTexturaEnRect( texturasJugadores.at( 1 ), renderer, 508, 550, 240, 24 );
-    renderTexturaEnRect( texturasJugadores.at( 2 ), renderer, 508, 580, 240, 24 );
-    renderTexturaEnRect( texturasJugadores.at( 3 ), renderer, 508, 610, 240, 24 );
-    for( SDL_Texture* textura : texturasJugadores ) {
-        SDL_DestroyTexture( textura );
-    }
-}
-
 /**
     Pantalla de espera de jugadores antes del inicio de cada partida.
     Cuando se completan 4 jugadores el servidor los da a conocer y se inicia la partida.
@@ -276,12 +283,13 @@ void crearPuntajes( char* datosJugadores, string jugadorLocal, SDL_Renderer *ren
 bool esperarJugadores( SDL_Renderer *renderer, Credencial* credencial ) {
     char* datosJugadores;
     SDL_Event event;
-
-    std::chrono::steady_clock::time_point tInicio = std::chrono::steady_clock::now();
+    SDL_Rect hint = { 0, 300, 800, 100 };
+    SDL_Texture* texturaEsperando = SDL_CreateTextureFromSurface( renderer,
+                                    imgtxtEsperando.imagenSurface() );
     vector<SDL_Texture*> texturasFondos =  fondos( renderer );
     bool listo = false, retorno = true;
-
     SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
+    std::chrono::steady_clock::time_point tInicio = std::chrono::steady_clock::now();
     while( !listo ) {
         while ( SDL_PollEvent( &event ) ) {
             switch ( event.type ) {
@@ -298,6 +306,8 @@ bool esperarJugadores( SDL_Renderer *renderer, Credencial* credencial ) {
                     std::chrono::steady_clock::now() - tInicio ).count() >= 500 ) {
             SDL_RenderClear( renderer );
             fondoPantalla( texturasFondos, renderer );
+            SDL_RenderFillRect( renderer, &hint );
+            renderTexturaEnRect( texturaEsperando, renderer, 0, 300, 800, 100 );
             SDL_RenderPresent( renderer );
             SDL_Delay( 10 );
         }
@@ -310,6 +320,7 @@ bool esperarJugadores( SDL_Renderer *renderer, Credencial* credencial ) {
     for( SDL_Texture* textura : texturasFondos ) {
         SDL_DestroyTexture( textura );
     }
+    SDL_DestroyTexture( texturaEsperando );
     return retorno;
 }
 
@@ -326,9 +337,9 @@ void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
     SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE  );
     SDL_RenderClear( renderer );
     cartas = generarCartas();
-    texturaLoteria = SDL_CreateTextureFromSurface( renderer, imgLoteria.imagenSurface() );
+    texturaLoteria = SDL_CreateTextureFromSurface( renderer, imgtxtLoteria.imagenSurface() );
     SDL_Rect rectCartaLanzada = { 515, 70, 228, 350 };
-    texturaTxtLanzada = renderTexto( "Lanzada", SDL_Color { 0, 0, 0, 255 }, 48, renderer );
+    texturaTxtLanzada = SDL_CreateTextureFromSurface( renderer, imgtxtLanzada.imagenSurface() );
     salir = false;
     do {
         if( !esperarJugadores( renderer, credencial ) ) {
