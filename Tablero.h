@@ -15,6 +15,7 @@ private:
     vector<vector<Casilla*>> tablero{4, vector<Casilla*>( 4 ) };
     set<char> lanzadas;
     SDL_Renderer * renderer;
+    int cartasRestantes;
 
 public:
     Tablero( SDL_Renderer * renderer ) {
@@ -44,17 +45,22 @@ public:
                 indiceSel++;
             }
         }
+        cartasRestantes = 16;
     }
     void agregarCartaLanzada( char id ) {
         lanzadas.insert( id );
     }
 
+    int restantes() {
+        return cartasRestantes;
+    }
     bool verficaClic( int x, int y ) {
         for( int i = 0; i < 4; i++ ) {
             for( int j = 0; j < 4; j++ ) {
                 if( !tablero[i][j]->estaMarcada() && lanzadas.find( tablero[i][j]->idCarta() ) != lanzadas.end() &&
                         tablero[i][j]->validaClic( x, y ) ) {
                     tablero[i][j]->marcar();
+                    cartasRestantes--;
                     return true;
                 }
             }

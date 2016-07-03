@@ -30,9 +30,9 @@ public:
     }
 
     ~Casilla() {
-        SDL_DestroyTexture( textura );
         if( this->imagen != nullptr ) {
             delete this->imagen;
+            SDL_DestroyTexture( textura );
         }
     }
     void reiniciar( Imagen* imagen ) {
