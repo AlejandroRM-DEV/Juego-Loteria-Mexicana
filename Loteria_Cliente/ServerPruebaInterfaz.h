@@ -10,8 +10,8 @@
 
 class MiniServidor {
     vector<int> cartas;
-    long long milisegundosActuales;
     vector<int> arraylanzar;
+    long long milisegundosActuales;
 
 public:
     MiniServidor() {

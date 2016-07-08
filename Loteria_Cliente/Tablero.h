@@ -34,13 +34,13 @@ public:
             }
         }
     }
-    void reiniciar( int* seleccionadas ) {
+    void reiniciar( char* seleccionadas ) {
         int indiceSel = 0;
         lanzadas.clear();
         for( int i = 0; i < 4; i++ ) {
             for( int j = 0; j < 4; j++ ) {
                 stringstream ss;
-                ss << "img/cartas/" << seleccionadas[indiceSel] << ".JPG";
+                ss << "img/cartas/" << (unsigned int)seleccionadas[indiceSel] << ".JPG";
                 tablero[i][j]->reiniciar( new Imagen( seleccionadas[indiceSel], ss.str() ) );
                 indiceSel++;
             }

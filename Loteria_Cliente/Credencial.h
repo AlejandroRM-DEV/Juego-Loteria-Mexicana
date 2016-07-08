@@ -3,22 +3,30 @@
 
 #include <iostream>
 
+#include "SocketPortable.h"
+
 using namespace std;
 
 class Credencial {
 private:
-    int servidorfd;
-    string jugador;
+    SocketPortable* sp;
+    string nombre;
 public:
-    Credencial( int servidorfd, string jugador ) {
-        this->servidorfd = servidorfd;
-        this->jugador = jugador;
+    Credencial(){
+        sp = new SocketPortable();
     }
-    int dameServidorfd() {
-        return servidorfd;
+    ~Credencial(){
+        delete sp;
     }
-    string dameJugador() {
-        return jugador;
+
+    SocketPortable* dameSocket() {
+        return sp;
+    }
+    void fijaNombre( string nombre ) {
+        this->nombre = nombre;
+    }
+    string dameNombre() {
+        return nombre;
     }
 };
 

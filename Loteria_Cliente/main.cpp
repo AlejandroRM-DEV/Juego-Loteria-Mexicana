@@ -12,6 +12,8 @@
 #define VENTANA_ALTO 680
 #define VENTANA_ANCHO 800
 
+enum Comandos : unsigned char { NOMBRE_REG, NOMBRE_OK, NOMBRE_OCUPADO, TABLERO_REG, CARTAS_REG, LANZAMIENTO, LOTERIA, GANADOR};
+
 struct Jugadores {
     char nombre1[10];
     int16_t ganados1;
@@ -22,6 +24,9 @@ struct Jugadores {
     char nombre4[10];
     int16_t ganados4;
 };
+
+#define SIZE_OF_STRUCT_JUGADORES 48
+#define TAMANO_BUFFER 128
 
 #include "ServerPruebaInterfaz.h"
 
@@ -41,15 +46,13 @@ string formatoJugador( string nombre, int ganados );
 vector<Imagen*> generarCartas( );
 vector<SDL_Texture*> fondos( SDL_Renderer *renderer );
 SDL_Color selColorMarcador( const char* otro, const char* local );
-SDL_Texture* renderTexto( const string &texto, SDL_Color color, int tamano,
-                          SDL_Renderer *renderer );
-Credencial* pantallaInicio( SDL_Renderer *renderer );
-void crearPuntajes( char* datosJugadores, string jugadorLocal, SDL_Renderer *renderer );
+SDL_Texture* renderTexto( const string &texto, SDL_Color color, int tamano, SDL_Renderer *renderer );
+bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer );
+void crearPuntajes( char* bytesJugadores, string jugadorLocal, SDL_Renderer *renderer );
 void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial );
 void fondoPantalla( vector<SDL_Texture*>& texturas, SDL_Renderer *renderer );
-bool esperarJugadores( SDL_Renderer *renderer, Credencial* credencial );
-void renderTexturaEnRect( SDL_Texture *texto, SDL_Renderer *renderer, int x, int y, int ancho,
-                          int alto );
+bool salaPrevia( SDL_Renderer *renderer, Credencial* credencial, Tablero &tablero );
+void renderTexturaEnRect( SDL_Texture *texto, SDL_Renderer *renderer, int x, int y, int ancho, int alto );
 
 int main( int argc, char **argv ) {
     SDL_Init( SDL_INIT_VIDEO );
@@ -63,11 +66,11 @@ int main( int argc, char **argv ) {
     SDL_Surface *icon = IMG_Load( "img/icono.PNG" );
     SDL_SetWindowIcon( window, icon );
 
-    Credencial* credencial = pantallaInicio( renderer );
-    if( credencial != nullptr ) {
+    Credencial* credencial = new Credencial();
+    if( pantallaInicio( credencial, renderer ) ) {
         pantallaJuego( renderer, credencial );
-        delete credencial;
     }
+    delete credencial;
 
     SDL_DestroyRenderer( renderer );
     SDL_DestroyWindow( window );
@@ -88,14 +91,12 @@ vector<Imagen*> generarCartas( ) {
     return cartas;
 }
 
-void renderTexturaEnRect( SDL_Texture *texto, SDL_Renderer *renderer, int x, int y, int ancho,
-                          int alto ) {
+void renderTexturaEnRect( SDL_Texture *texto, SDL_Renderer *renderer, int x, int y, int ancho, int alto ) {
     SDL_Rect dst = {x, y, ancho, alto};
     SDL_RenderCopy( renderer, texto, nullptr, &dst );
 }
 
-SDL_Texture* renderTexto( const string &texto, SDL_Color color, int tamano,
-                          SDL_Renderer *renderer ) {
+SDL_Texture* renderTexto( const string &texto, SDL_Color color, int tamano, SDL_Renderer *renderer ) {
     TTF_Font *font = TTF_OpenFont( "arial.ttf", tamano );
     SDL_Surface *surf = TTF_RenderText_Blended( font, texto.c_str(), color );
     SDL_Texture *texture = SDL_CreateTextureFromSurface( renderer, surf );
@@ -135,12 +136,20 @@ SDL_Color selColorMarcador( const char* otro, const char* local ) {
            SDL_Color { 0, 0, 0, SDL_ALPHA_OPAQUE };
 }
 
-void crearPuntajes( char* datosJugadores, string jugadorLocal, SDL_Renderer *renderer ) {
+void crearPuntajes( char* bytesJugadores, string jugadorLocal, SDL_Renderer *renderer ) {
     struct Jugadores jugadores;
     vector<SDL_Texture*> texturasJugadores;
     SDL_Color color;
 
-    memcpy( &jugadores, datosJugadores, sizeof( Jugadores ) );
+    memcpy( &jugadores.nombre1, &bytesJugadores[0], 10 );
+    memcpy( &jugadores.ganados1, &bytesJugadores[10], 2 );
+    memcpy( &jugadores.nombre2, &bytesJugadores[12], 10 );
+    memcpy( &jugadores.ganados2, &bytesJugadores[22], 2 );
+    memcpy( &jugadores.nombre3, &bytesJugadores[24], 10 );
+    memcpy( &jugadores.ganados3, &bytesJugadores[34],  2 );
+    memcpy( &jugadores.nombre4, &bytesJugadores[36], 10 );
+    memcpy( &jugadores.ganados4, &bytesJugadores[46], 2 );
+
     color = selColorMarcador( jugadores.nombre1, jugadorLocal.c_str() );
     texturasJugadores.push_back(
         renderTexto( formatoJugador( jugadores.nombre1, jugadores.ganados1 ).c_str(), color, 32, renderer )
@@ -167,16 +176,19 @@ void crearPuntajes( char* datosJugadores, string jugadorLocal, SDL_Renderer *ren
     }
 }
 
+bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
+    struct addrinfo hints;
+    Comandos cmd;
+    char buffer[TAMANO_BUFFER];
+    int leido;
 
-Credencial* pantallaInicio( SDL_Renderer *renderer ) {
     SDL_Texture *texturaServidor, *texturaTextoIngresado, *textoJugador, *texturaError;
     vector<SDL_Texture*> texturasFondos =  fondos( renderer );
     SDL_Event event;
     std::chrono::steady_clock::time_point tInicio;
-    string msjError, textoIngresado;
-    bool error, terminado, conectado;
-    Credencial* credencial = nullptr;
-    int servidorfd;
+    string textoIngresado;
+    int msjErrorLen;
+    bool error, terminado, conectado, retorno;
 
     texturaServidor = SDL_CreateTextureFromSurface( renderer, imgtxtServidor.imagenSurface() );
     textoJugador = SDL_CreateTextureFromSurface( renderer, imgtxtNombre.imagenSurface() );
@@ -184,13 +196,27 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
     error = terminado = conectado = false;
     textoIngresado = "127.0.0.1";
     tInicio = std::chrono::steady_clock::now();
+
+    memset( &hints, 0, sizeof ( addrinfo ) );
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    /*
+        Si no se puede crear el socket cerramos la aplicacion, no podriamos continuar
+    */
+    if( !credencial->dameSocket()->socket( AF_INET, SOCK_STREAM, 0 ) ) {
+        cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+        terminado = true;
+        retorno = false;
+    }
+
+    SDL_StartTextInput();
+    SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
     while ( !terminado ) {
-        SDL_StartTextInput();
         while ( SDL_PollEvent( &event ) ) {
             switch ( event.type ) {
             case SDL_QUIT:
-                servidorfd = -1;
                 terminado = true;
+                retorno = false;
             case SDL_KEYDOWN:
                 if( event.key.keysym.sym == SDLK_BACKSPACE ) {
                     if( !textoIngresado.empty() ) {
@@ -198,80 +224,103 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
                     }
                 } else if( event.key.keysym.sym == SDLK_RETURN ) {
                     if( !conectado ) {
-                        /**
-                        *   Validar todos los errores al crear y establecer conexiones
-                        */
                         if( textoIngresado.empty() ) {
                             error = true;
-                            msjError = "No se ingreso el nombre del host";
-                        } else if( textoIngresado == "ERROR" ) {
-                            error = true;
-                            msjError = "Aqui va el mensaje de error, si ocurre alguno";
+                            msjErrorLen = 32;
+                            texturaError = renderTexto( "No se ingreso el nombre del host", SDL_Color { 0, 0, 0, 255 }, 24, renderer );
                         } else {
-                            conectado = true;
-                            textoIngresado = "Jugador 00";
-                            servidorfd = 1;
+                            if( credencial->dameSocket()->connect( textoIngresado.c_str(), "17999", &hints )
+                                    && credencial->dameSocket()->setNonBlock() ) {
+                                conectado = true;
+                                error = false;
+                                textoIngresado = "Jugador 00";
+                            } else {
+                                error = true;
+                                msjErrorLen = 22;
+                                texturaError = renderTexto(  "Servidor no disponible", SDL_Color { 0, 0, 0, 255 }, 24, renderer );
+                            }
                         }
                     } else {
-                        /**
-                        *   El servidor validara que el nombre de usuario este disponible,
-                        *   de ser asi establecer terminado = true; y retornar
-                        */
                         if( textoIngresado.empty() ) {
                             error = true;
-                            msjError = "Debe elegir un nombre de jugador";
+                            msjErrorLen = 32;
+                            texturaError = renderTexto(  "Debe elegir un nombre de jugador", SDL_Color { 0, 0, 0, 255 }, 24, renderer );
                         } else if( textoIngresado.size() > 10 ) {
                             error = true;
-                            msjError = "Maximo 10 caracteres para el nombre de jugador";
+                            msjErrorLen = 46;
+                            texturaError = renderTexto(  "Maximo 10 caracteres para el nombre de jugador", SDL_Color { 0, 0, 0, 255 }, 24,
+                                                         renderer );
                         } else {
-                            terminado = true;
-                            credencial = new Credencial( servidorfd, textoIngresado );
+                            cmd  = NOMBRE_REG;
+                            memset( buffer, 0, sizeof( buffer ) );
+                            memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
+                            memcpy( &buffer[1], textoIngresado.c_str(), 10 );
+                            credencial->dameSocket()->send( buffer, 11, 0 );
                         }
                     }
                 }
                 break;
             case SDL_TEXTINPUT:
-                textoIngresado.append( event.text.text );
-                break;
             case SDL_TEXTEDITING:
                 textoIngresado.append( event.edit.text );
                 break;
             }
-            texturaTextoIngresado = renderTexto( textoIngresado.c_str(), SDL_Color { 0, 0, 0, 255 }, 48,
-                                                 renderer );
+            texturaTextoIngresado = renderTexto( textoIngresado.c_str(), SDL_Color { 0, 0, 0, 255 }, 48, renderer );
         }
 
-        if( std::chrono::duration_cast<std::chrono::microseconds>(
-                    std::chrono::steady_clock::now() - tInicio ).count() >= 500 ) {
-            tInicio = std::chrono::steady_clock::now();
-            SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
-            SDL_RenderClear( renderer );
-            fondoPantalla( texturasFondos, renderer );
-            SDL_RenderFillRect( renderer, &hint );
-            if( !conectado ) {
-                renderTexturaEnRect( texturaServidor, renderer, 0, 310, 800, 50 );
+        SDL_RenderClear( renderer );
+        fondoPantalla( texturasFondos, renderer );
+        SDL_RenderFillRect( renderer, &hint );
+        if( !conectado ) {
+            renderTexturaEnRect( texturaServidor, renderer, 0, 310, 800, 50 );
+        } else {
+            renderTexturaEnRect( textoJugador, renderer, 0, 310, 800, 50 );
+            /*  Solo leemos el numero de bytes que esperamos (1), leer mas puede leer cosas
+                que serian procesadas en otro lado (struct Jugadores)
+            */
+            leido = credencial->dameSocket()->recv( buffer, sizeof( Comandos ), 0 );
+            if ( leido > 0 ) {
+                buffer[leido] = 0;
+                memcpy( &cmd, &buffer[0], 1 );
+                if( cmd == NOMBRE_OK ) {
+                    terminado = true;
+                    retorno = true;
+                    credencial->fijaNombre(textoIngresado);
+                } else if( cmd == NOMBRE_OCUPADO ) {
+                    error = true;
+                    msjErrorLen = 40;
+                    texturaError = renderTexto(  "El nombre del jugador no esta disponible", SDL_Color { 0, 0, 0, 255 }, 24, renderer );
+                }
+            } else if ( leido < 0 ) {
+                if ( !credencial->dameSocket()->nonBlockNoError() ) {
+                    cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+                    terminado = true;
+                    retorno = false;
+                }
             } else {
-                renderTexturaEnRect( textoJugador, renderer, 0, 310, 800, 50 );
+                cout << "Conexion cerrada" << endl;
+                terminado = true;
+                retorno = false;
             }
-            renderTexturaEnRect( texturaTextoIngresado, renderer, ( 400 - textoIngresado.size() * 7 ), 360,
-                                 textoIngresado.size() * 14, 40 );
-            if( error ) {
-                texturaError = renderTexto( msjError.c_str(), SDL_Color { 0, 0, 0, 255 }, 24, renderer );
-                renderTexturaEnRect( texturaError, renderer, 0, 650, msjError.size() * 10, 24 );
-            }
-            SDL_RenderPresent( renderer );
-            SDL_Delay( 10 );
         }
-        SDL_StopTextInput();
-    }
+        if( error ) {
+            renderTexturaEnRect( texturaError, renderer, 0, 650, msjErrorLen * 10, 24 );
+        }
 
+        renderTexturaEnRect( texturaTextoIngresado, renderer, ( 400 - textoIngresado.size() * 7 ), 360,
+                             textoIngresado.size() * 14, 40 );
+
+        SDL_RenderPresent( renderer );
+        SDL_Delay( 25 );
+    }
+    SDL_StopTextInput();
     SDL_DestroyTexture( texturaTextoIngresado );
     SDL_DestroyTexture( texturaServidor );
     SDL_DestroyTexture( textoJugador );
     for( SDL_Texture* textura : texturasFondos ) {
         SDL_DestroyTexture( textura );
     }
-    return credencial;
+    return retorno;
 }
 
 /**
@@ -280,16 +329,18 @@ Credencial* pantallaInicio( SDL_Renderer *renderer ) {
         - La pantalla se muestra cuando es juego nuevo.
         - Algun jugador abandono la partida.
 **/
-bool esperarJugadores( SDL_Renderer *renderer, Credencial* credencial ) {
-    char* datosJugadores;
+bool salaPrevia( SDL_Renderer *renderer, Credencial *credencial, Tablero &tablero ) {
+    char bytesJugadores[SIZE_OF_STRUCT_JUGADORES];
+    char bytesCartas[16];
+    char buffer[TAMANO_BUFFER];
+    int leido;
+    Comandos cmd;
     SDL_Event event;
     SDL_Rect hint = { 0, 300, 800, 100 };
-    SDL_Texture* texturaEsperando = SDL_CreateTextureFromSurface( renderer,
-                                    imgtxtEsperando.imagenSurface() );
+    SDL_Texture* texturaEsperando = SDL_CreateTextureFromSurface( renderer, imgtxtEsperando.imagenSurface() );
     vector<SDL_Texture*> texturasFondos =  fondos( renderer );
     bool listo = false, retorno = true;
     SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
-    std::chrono::steady_clock::time_point tInicio = std::chrono::steady_clock::now();
     while( !listo ) {
         while ( SDL_PollEvent( &event ) ) {
             switch ( event.type ) {
@@ -297,26 +348,39 @@ bool esperarJugadores( SDL_Renderer *renderer, Credencial* credencial ) {
                 retorno = false;
                 listo = true;
                 break;
-            case SDL_KEYDOWN:
-                listo = true;
-                break;
             }
         }
-        if( std::chrono::duration_cast<std::chrono::microseconds>(
-                    std::chrono::steady_clock::now() - tInicio ).count() >= 500 ) {
-            SDL_RenderClear( renderer );
-            fondoPantalla( texturasFondos, renderer );
-            SDL_RenderFillRect( renderer, &hint );
-            renderTexturaEnRect( texturaEsperando, renderer, 0, 300, 800, 100 );
-            SDL_RenderPresent( renderer );
-            SDL_Delay( 10 );
+        leido = credencial->dameSocket()->recv( buffer, SIZE_OF_STRUCT_JUGADORES + 17, 0 );
+        if ( leido > 0 ) {
+            buffer[leido] = 0;
+            memcpy( &cmd, &buffer[0], 1 );
+            if( cmd == TABLERO_REG ) {
+                memcpy( &bytesJugadores, &buffer[1], SIZE_OF_STRUCT_JUGADORES );
+                memcpy( &bytesCartas, &buffer[49], 16 );
+                retorno = listo = true;
+            }
+        } else if ( leido < 0 ) {
+            if ( !credencial->dameSocket()->nonBlockNoError() ) {
+                cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+                retorno = false;
+                listo = true;
+            }
+        } else {
+            cout << "Conexion cerrada" << endl;
+            retorno = false;
+            listo = true;
         }
+        SDL_RenderClear( renderer );
+        fondoPantalla( texturasFondos, renderer );
+        SDL_RenderFillRect( renderer, &hint );
+        renderTexturaEnRect( texturaEsperando, renderer, 0, 300, 800, 100 );
+        SDL_RenderPresent( renderer );
+        SDL_Delay( 25 );
     }
     SDL_RenderClear( renderer );
-    MiniServidor serv;  // USAR credencial->dameServidorfd();
-    datosJugadores = serv.datosJugadores();
-    crearPuntajes( datosJugadores, credencial->dameJugador(), renderer );
-    delete datosJugadores;
+    crearPuntajes( bytesJugadores, credencial->dameNombre(), renderer );
+    tablero.reiniciar( bytesCartas );
+
     for( SDL_Texture* textura : texturasFondos ) {
         SDL_DestroyTexture( textura );
     }
@@ -324,7 +388,7 @@ bool esperarJugadores( SDL_Renderer *renderer, Credencial* credencial ) {
     return retorno;
 }
 
-void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
+void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
     Boton btnLoteria( 528, 440, 200, 50, "img/botonLoteria.PNG", renderer );
     Tablero tablero( renderer );
     bool terminado, salir, habilitaBoton;
@@ -342,7 +406,7 @@ void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
     texturaTxtLanzada = SDL_CreateTextureFromSurface( renderer, imgtxtLanzada.imagenSurface() );
     salir = false;
     do {
-        if( !esperarJugadores( renderer, credencial ) ) {
+        if( !salaPrevia( renderer, credencial,  tablero ) ) {
             break;
         }
 
@@ -350,7 +414,6 @@ void pantallaJuego( SDL_Renderer *renderer, Credencial* credencial ) {
         SDL_SetRenderDrawColor( renderer, 224, 224, 224, SDL_ALPHA_OPAQUE );
         renderTexturaEnRect( texturaTxtLanzada, renderer, 528, 20, 200, 40 );
         SDL_RenderFillRect( renderer, &rectCartaLanzada );
-        tablero.reiniciar( serv.pruebaSeleccionados() );
         terminado = habilitaBoton = false;
 
         serv.iniciarReloj();
