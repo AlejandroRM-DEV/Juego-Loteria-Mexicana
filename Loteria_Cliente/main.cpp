@@ -12,7 +12,7 @@
 #define VENTANA_ALTO 680
 #define VENTANA_ANCHO 800
 
-enum Comandos : unsigned char { NOMBRE_REG, NOMBRE_OK, NOMBRE_OCUPADO, TABLERO_REG, CARTAS_REG, LANZAMIENTO, LOTERIA, GANADOR};
+enum Comandos : unsigned char { NOMBRE_REG, NOMBRE_OK, NOMBRE_OCUPADO, NUEVA_PARTIDA, LANZAMIENTO, LOTERIA, GANADOR};
 
 struct Jugadores {
     char nombre1[10];
@@ -27,8 +27,6 @@ struct Jugadores {
 
 #define SIZE_OF_STRUCT_JUGADORES 48
 #define TAMANO_BUFFER 128
-
-#include "ServerPruebaInterfaz.h"
 
 static Imagen imgFondo1( -1, "img/presentacion.JPG" );
 static Imagen imgFondo2( -1, "img/todas1.PNG" );
@@ -285,7 +283,7 @@ bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
                 if( cmd == NOMBRE_OK ) {
                     terminado = true;
                     retorno = true;
-                    credencial->fijaNombre(textoIngresado);
+                    credencial->fijaNombre( textoIngresado );
                 } else if( cmd == NOMBRE_OCUPADO ) {
                     error = true;
                     msjErrorLen = 40;
@@ -354,7 +352,7 @@ bool salaPrevia( SDL_Renderer *renderer, Credencial *credencial, Tablero &tabler
         if ( leido > 0 ) {
             buffer[leido] = 0;
             memcpy( &cmd, &buffer[0], 1 );
-            if( cmd == TABLERO_REG ) {
+            if( cmd == NUEVA_PARTIDA ) {
                 memcpy( &bytesJugadores, &buffer[1], SIZE_OF_STRUCT_JUGADORES );
                 memcpy( &bytesCartas, &buffer[49], 16 );
                 retorno = listo = true;
@@ -392,11 +390,13 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
     Boton btnLoteria( 528, 440, 200, 50, "img/botonLoteria.PNG", renderer );
     Tablero tablero( renderer );
     bool terminado, salir, habilitaBoton;
+    char buffer[TAMANO_BUFFER], ganador[10];
+    unsigned char carta;
+    int leido;
+    Comandos cmd;
     vector<Imagen*> cartas;
     SDL_Texture *texturaTxtLanzada, *texturaCartaLanzada, *texturaGanador, *texturaLoteria;
     SDL_Event event;
-
-    MiniServidor serv;  // Borrar despues
 
     SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE  );
     SDL_RenderClear( renderer );
@@ -416,8 +416,6 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
         SDL_RenderFillRect( renderer, &rectCartaLanzada );
         terminado = habilitaBoton = false;
 
-        serv.iniciarReloj();
-
         do {
             SDL_RenderPresent( renderer );
             while ( SDL_PollEvent( &event ) ) {
@@ -432,34 +430,48 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
                             habilitaBoton = true;
                         }
                     } else if( habilitaBoton && btnLoteria.validaClic( event.motion.x, event.motion.y ) ) {
-                        /*
-                            Enviar al servidor que ya ganamos
-                        */
-                        cout << "LOTERIA" << endl;
-                        terminado = true;
+                        cmd = LOTERIA;
+                        memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
+                        credencial->dameSocket()->send( buffer, 1, 0 );
                     }
                     break;
                 }
             }
 
+            leido = credencial->dameSocket()->recv( buffer, TAMANO_BUFFER, 0 );
+            if ( leido > 0 ) {
+                buffer[leido] = 0;
+                memcpy( &cmd, &buffer[0], 1 );
+                if( cmd == LANZAMIENTO ) {
+                    memcpy( &carta, &buffer[1], 1 );
+                    texturaCartaLanzada = SDL_CreateTextureFromSurface( renderer, cartas[carta - 1]->imagenSurface() );
+                    tablero.agregarCartaLanzada( carta );
+                    SDL_RenderCopy( renderer, texturaCartaLanzada, nullptr, &rectCartaLanzada );
+                    SDL_DestroyTexture( texturaCartaLanzada );
+                } else if( cmd == GANADOR ) {
+                    terminado = true;
+                    memcpy( &ganador, &buffer[1], 10 );
+                }
+            } else if ( leido < 0 ) {
+                if ( !credencial->dameSocket()->nonBlockNoError() ) {
+                    cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+                    terminado = salir = true;
+                }
+            } else {
+                cout << "Conexion cerrada" << endl;
+                terminado = salir = true;
+            }
             if( terminado && !salir ) {
                 SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
                 SDL_Rect hint = { 0, 0, 800, 680 };
                 SDL_RenderFillRect( renderer, &hint );
                 renderTexturaEnRect( texturaLoteria, renderer, 0, 200, 800, 180 );
-                texturaGanador  = renderTexto( "de AlejandroR", SDL_Color { 0, 0, 0, 255 },
-                                               110, renderer );
+                texturaGanador  = renderTexto( ganador, SDL_Color { 0, 0, 0, 255 },110, renderer );
                 renderTexturaEnRect( texturaGanador, renderer, 180, 360, 440, 110 );
                 SDL_DestroyTexture( texturaGanador );
                 SDL_RenderPresent( renderer );
                 SDL_Delay( 5000 );
                 terminado = true;
-            } else if( serv.hayQueLeer() ) {
-                int id = serv.lanzar();
-                texturaCartaLanzada = SDL_CreateTextureFromSurface( renderer, cartas[id - 1]->imagenSurface() );
-                tablero.agregarCartaLanzada( id );
-                SDL_RenderCopy( renderer, texturaCartaLanzada, nullptr, &rectCartaLanzada );
-                SDL_DestroyTexture( texturaCartaLanzada );
             }
         } while ( !terminado );
         SDL_RenderClear( renderer );

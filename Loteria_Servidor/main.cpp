@@ -5,6 +5,7 @@
 #include <chrono>
 #include <algorithm>
 #include <random>
+#include <type_traits>
 
 #include "SocketPortable.h"
 #include "Poll.h"
@@ -17,7 +18,13 @@ using namespace std;
 #define ERROR_SOCKET -1
 #define ERROR_POLL -2
 
-enum Comandos : unsigned char { NOMBRE_REG, NOMBRE_OK, NOMBRE_OCUPADO, TABLERO_REG, CARTAS_REG, LANZAMIENTO, LOTERIA, GANADOR};
+enum Comandos : unsigned char { NOMBRE_REG, NOMBRE_OK, NOMBRE_OCUPADO, NUEVA_PARTIDA, LANZAMIENTO, LOTERIA, GANADOR};
+
+using reloj = std::conditional <
+              std::chrono::high_resolution_clock::is_steady,
+              std::chrono::high_resolution_clock,
+              std::chrono::steady_clock
+              >::type;
 
 vector<unsigned char> cartas;
 vector<unsigned char> arraylanzar;
@@ -33,16 +40,18 @@ void removerJugador( int i, Poll &poll, struct Jugador* jugadores, int &cantidad
 void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores );
 
 int main() {
-    char buffer[TAMANO_BUFFER + 1], ip[100];
-    SocketPortable sp, *sockNuevo;
+    struct Jugador jugadores[TOTAL_JUGADORES];
     struct sockaddr_storage origen;
     struct sockaddr_in servidor;
-    socklen_t origen_len;
+    char buffer[TAMANO_BUFFER + 1], ip[100];
     int conexion, leido, cantidadJugadores;
     Poll poll( TOTAL_JUGADORES + 1 );
+    SocketPortable sp, *sockNuevo;
+    socklen_t origen_len;
     Comandos cmd;
-    bool registrado, jugadoresListos = false;
-    struct Jugador jugadores[TOTAL_JUGADORES];
+    bool registrado, partidaIniciada, jugadoresListos, ganador;
+    reloj::time_point tiempo_inicio;
+
     for( int i = 0; i < TOTAL_JUGADORES; i++ ) {
         jugadores[i] = {{0}, 0, {0}, nullptr};
     }
@@ -53,6 +62,7 @@ int main() {
     servidor.sin_family = AF_INET;
     servidor.sin_addr.s_addr = htonl( INADDR_ANY );
     servidor.sin_port = htons( 17999 );
+    partidaIniciada = jugadoresListos = false;
     try {
         if( !sp.socket( AF_INET, SOCK_STREAM, 0 ) ) throw ERROR_SOCKET;
 
@@ -106,11 +116,12 @@ int main() {
                                 if( !registrado ) {
                                     memcpy( &jugadores[i - 1].nombre, &buffer[1], 10 ); // leido-1
                                     cmd = NOMBRE_OK;
-                                    jugadoresListos = ( cantidadJugadores == TOTAL_JUGADORES );
                                     cout << "Jugador: ";
                                     for( int p = 1; p < leido; p++ )
                                         cout << buffer[p];
                                     cout << " registrado" << endl;
+                                    jugadoresListos = ( cantidadJugadores == TOTAL_JUGADORES );
+                                    tiempo_inicio = reloj::now();
                                 } else {
                                     cmd = NOMBRE_OCUPADO;
                                 }
@@ -119,34 +130,80 @@ int main() {
                                 poll.getSocketPortable( i )->send( buffer, 1, 0 );
                                 break;
                             case LOTERIA:
-                                // Revisar si ya ha ganado
+                                ganador = true;
+                                for( size_t k = 0; k < 16; k++ ) {
+                                    // Verificamos que todas las cartas se hayan lanzado
+                                    if( find( arraylanzar.begin(), arraylanzar.end(), jugadores[i - 1].cartas[k] ) != arraylanzar.end() ) {
+                                        ganador = false;
+                                        break;
+                                    }
+                                }
+                                if( ganador ) {
+                                    cmd = GANADOR;
+                                    memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
+                                    memcpy( &buffer[1], &jugadores[i - 1].nombre, 10 );
+                                    for( int k = 0; k < cantidadJugadores; k++ ) {
+                                        poll.getSocketPortable( k + 1 )->send( buffer, 11, 0 );
+                                    }
+                                    cout << "Loteria de " << jugadores[i - 1].nombre << endl;
+                                    partidaIniciada = false;
+                                    jugadoresListos = ( cantidadJugadores == TOTAL_JUGADORES );
+                                    tiempo_inicio = reloj::now();
+                                }
                                 break;
                             case NOMBRE_OK:
                             case NOMBRE_OCUPADO:
-                            case TABLERO_REG:
-                            case CARTAS_REG:
+                            case NUEVA_PARTIDA:
                             case LANZAMIENTO:
                             case GANADOR:
                                 cout << "ERROR!!! El servidor no deberia recibir este comando" << endl;
                                 break;
                             }
                         } else {
-                            removerJugador( i, poll, jugadores, cantidadJugadores );
+                            removerJugador( i - 1, poll, jugadores, cantidadJugadores );
+                            jugadoresListos = false;
                         }
                     }
                 }
             } else if ( conexion < 0 ) {
                 throw ERROR_POLL;
             }
-            if( jugadoresListos ) {
-                init( poll, jugadores, cantidadJugadores );
-                jugadoresListos = false;
+
+            if( !partidaIniciada && jugadoresListos ) {
+                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 10 ) {
+                    init( poll, jugadores, cantidadJugadores );
+                    partidaIniciada = true;
+                    mt19937 g( static_cast<uint32_t>( time( nullptr ) ) );
+                    shuffle( cartas.begin(), cartas.end(), g );
+                    for( unsigned char i : cartas ) {
+                        arraylanzar.push_back( i );
+                    }
+                    tiempo_inicio = reloj::now();
+                }
             }
-            /****************************
+            if( partidaIniciada ) {
+                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 0.5 ) {
+                    if( !arraylanzar.empty() ) {
+                        cmd = LANZAMIENTO;
+                        memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
+                        memcpy( &buffer[1], &arraylanzar.back(), 1 );
 
-            LANZAMIENTOS DE CARTAS
+                        for( int k = 0; k < cantidadJugadores; k++ ) {
+                            if( poll.getSocketPortable( k + 1 )->send( buffer, 2, 0 ) < 0 ) {
+                                removerJugador( k, poll, jugadores, cantidadJugadores );
+                                k--;
+                            }
+                        }
 
-            ****************************/
+                        cout << "Carta #" << ( unsigned int ) arraylanzar.back() << " lanzada " << endl;
+                        arraylanzar.pop_back();
+                        tiempo_inicio = reloj::now();
+                    } else {
+                        cout << "No hay mas lanzamientos, esperando loteria de alguien" << endl;
+                        partidaIniciada = false;
+                    }
+                }
+            }
         } while ( true );
     } catch( int e ) {
         if( e == ERROR_SOCKET ) {
@@ -162,12 +219,12 @@ int main() {
 
 
 void removerJugador( int i, Poll &poll, struct Jugador* jugadores, int &cantidadJugadores ) {
-    cout << "El cliente (fd: " << poll.getSocketPortable( i )->getFD() << ") ha abandonado" << endl;
+    cout << "El cliente (fd: " << poll.getSocketPortable( i + 1 )->getFD() << ") ha abandonado" << endl;
     jugadores[i] = jugadores[cantidadJugadores - 1];
     jugadores[cantidadJugadores - 1] = { {0}, 0, {0}, nullptr };
     cantidadJugadores--;
-    delete poll.getSocketPortable( i );
-    poll.remove( i-- );
+    delete poll.getSocketPortable( i + 1 );
+    poll.remove( ( i-- ) + 1 );
 }
 
 void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
@@ -175,7 +232,7 @@ void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
     char buffer_j[4][65];
     char buffer[49];
 
-    cmd = TABLERO_REG;
+    cmd = NUEVA_PARTIDA;
     memset( buffer, 0, sizeof( buffer ) );
     memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
     memcpy( &buffer[1], &jugadores[0].nombre, 10 );
@@ -192,9 +249,9 @@ void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
     memcpy( &buffer_j[2], &buffer, 49 );
     memcpy( &buffer_j[3], &buffer, 49 );
 
-    for( int k = 0, q = 0; k < 4; k++, q = 0 ) {
-        mt19937 g( static_cast<uint32_t>( time( nullptr ) ) );
-        shuffle( cartas.begin(), cartas.end(), g );
+    for( int k = 0, q = 0; k < cantidadJugadores; k++, q = 0 ) {
+        mt19937 mt( static_cast<uint32_t>( time( nullptr ) ) );
+        shuffle( cartas.begin(), cartas.end(), mt );
         cout << "Generando cartas del jugador: " << jugadores[k].nombre << "\r\n\t";
         for( int i = 49; i < 65; i++, q++ ) {
             cout << ( unsigned int ) cartas[q] << " ";
@@ -203,13 +260,10 @@ void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
         cout << endl;
     }
     cout << "Anunciando jugadores. . . " << endl;
-    if( poll.getSocketPortable( 1 )->send( buffer_j[0], 65, 0 ) < 0 )
-        removerJugador( 1, poll, jugadores, cantidadJugadores );
-    if( poll.getSocketPortable( 2 )->send( buffer_j[1], 65, 0 ) < 0 )
-        removerJugador( 2, poll, jugadores, cantidadJugadores );
-    /*if( poll.getSocketPortable( 3 )->send( buffer_j[2], 65, 0 ) < 0 )
-        removerJugador( 3, poll, jugadores, cantidadJugadores );
-    if( poll.getSocketPortable( 4 )->send( buffer_j[3], 65, 0 ) < 0 )
-        removerJugador( 4, poll, jugadores, cantidadJugadores );
-    */
+    for( int k = 0; k < cantidadJugadores; k++ ) {
+        if( poll.getSocketPortable( k + 1 )->send( buffer_j[k], 65, 0 ) < 0 ) {
+            removerJugador( k, poll, jugadores, cantidadJugadores );
+            k--;
+        }
+    }
 }
