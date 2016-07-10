@@ -2,7 +2,6 @@
 #define BOTON_H_INCLUDED
 
 #include <SDL.h>
-#include <SDL_ttf.h>
 #include "Imagen.h"
 
 class Boton {
@@ -35,8 +34,8 @@ public:
     }
 
     void render(SDL_Renderer * renderer ){
-        SDL_Rect r = { x, y, ancho, alto};
-        SDL_RenderCopy( renderer, textura, nullptr, &r  );
+        SDL_Rect cuadro = { x, y, ancho, alto};
+        SDL_RenderCopy( renderer, textura, nullptr, &cuadro  );
     }
 };
 

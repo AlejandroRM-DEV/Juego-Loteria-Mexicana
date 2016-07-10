@@ -10,13 +10,13 @@
 #include "SocketPortable.h"
 #include "Poll.h"
 
-using namespace std;
-
 #define TAMANO_BUFFER 128
 #define TOTAL_JUGADORES 2
 
 #define ERROR_SOCKET -1
 #define ERROR_POLL -2
+
+using namespace std;
 
 enum Comandos : unsigned char { NOMBRE_REG, NOMBRE_OK, NOMBRE_OCUPADO, NUEVA_PARTIDA, LANZAMIENTO, LOTERIA, GANADOR};
 
@@ -37,20 +37,20 @@ struct Jugador {
 };
 
 void removerJugador( int i, Poll &poll, struct Jugador* jugadores, int &cantidadJugadores );
-void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores );
+void anunciarPartida( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores );
 
 int main() {
     struct Jugador jugadores[TOTAL_JUGADORES];
     struct sockaddr_storage origen;
     struct sockaddr_in servidor;
+    bool nombreRegistrado, partidaIniciada, jugadoresListos, ganador;
     char buffer[TAMANO_BUFFER + 1], ip[100];
     int conexion, leido, cantidadJugadores;
+    reloj::time_point tiempo_inicio;
     Poll poll( TOTAL_JUGADORES + 1 );
     SocketPortable sp, *sockNuevo;
     socklen_t origen_len;
     Comandos cmd;
-    bool registrado, partidaIniciada, jugadoresListos, ganador;
-    reloj::time_point tiempo_inicio;
 
     for( int i = 0; i < TOTAL_JUGADORES; i++ ) {
         jugadores[i] = {{0}, 0, {0}, nullptr};
@@ -58,6 +58,7 @@ int main() {
     for( unsigned char i = 1; i <= 54; i++ ) {
         cartas.push_back( i );
     }
+
     memset( &servidor, 0, sizeof ( servidor ) );
     servidor.sin_family = AF_INET;
     servidor.sin_addr.s_addr = htonl( INADDR_ANY );
@@ -109,11 +110,11 @@ int main() {
                             memcpy( &cmd, &buffer[0], 1 );
                             switch( cmd ) {
                             case NOMBRE_REG:
-                                registrado = false;
-                                for( int k = 0; !registrado && k < cantidadJugadores; k++ ) {
-                                    registrado = memcmp( &jugadores[k].nombre, &buffer[1], 10 ) == 0;
+                                nombreRegistrado = false;
+                                for( int k = 0; !nombreRegistrado && k < cantidadJugadores; k++ ) {
+                                    nombreRegistrado = memcmp( &jugadores[k].nombre, &buffer[1], 10 ) == 0;
                                 }
-                                if( !registrado ) {
+                                if( !nombreRegistrado ) {
                                     memcpy( &jugadores[i - 1].nombre, &buffer[1], 10 ); // leido-1
                                     cmd = NOMBRE_OK;
                                     cout << "Jugador: ";
@@ -171,7 +172,7 @@ int main() {
 
             if( !partidaIniciada && jugadoresListos ) {
                 if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 10 ) {
-                    init( poll, jugadores, cantidadJugadores );
+                    anunciarPartida( poll, jugadores, cantidadJugadores );
                     partidaIniciada = true;
                     mt19937 g( static_cast<uint32_t>( time( nullptr ) ) );
                     shuffle( cartas.begin(), cartas.end(), g );
@@ -227,9 +228,9 @@ void removerJugador( int i, Poll &poll, struct Jugador* jugadores, int &cantidad
     poll.remove( ( i-- ) + 1 );
 }
 
-void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
+void anunciarPartida( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
     Comandos cmd;
-    char buffer_j[4][65];
+    char buffers_jugadores[TOTAL_JUGADORES][65];
     char buffer[49];
 
     cmd = NUEVA_PARTIDA;
@@ -244,10 +245,10 @@ void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
     memcpy( &buffer[37], &jugadores[3].nombre, 10 );
     memcpy( &buffer[47], &jugadores[3].ganados, 2 );
 
-    memcpy( &buffer_j[0], &buffer, 49 );
-    memcpy( &buffer_j[1], &buffer, 49 );
-    memcpy( &buffer_j[2], &buffer, 49 );
-    memcpy( &buffer_j[3], &buffer, 49 );
+    memcpy( &buffers_jugadores[0], &buffer, 49 );
+    memcpy( &buffers_jugadores[1], &buffer, 49 );
+    memcpy( &buffers_jugadores[2], &buffer, 49 );
+    memcpy( &buffers_jugadores[3], &buffer, 49 );
 
     for( int k = 0, q = 0; k < cantidadJugadores; k++, q = 0 ) {
         mt19937 mt( static_cast<uint32_t>( time( nullptr ) ) );
@@ -255,13 +256,13 @@ void init( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
         cout << "Generando cartas del jugador: " << jugadores[k].nombre << "\r\n\t";
         for( int i = 49; i < 65; i++, q++ ) {
             cout << ( unsigned int ) cartas[q] << " ";
-            memcpy( &buffer_j[k][i], &cartas[q], 1 );
+            memcpy( &buffers_jugadores[k][i], &cartas[q], 1 );
         }
         cout << endl;
     }
     cout << "Anunciando jugadores. . . " << endl;
     for( int k = 0; k < cantidadJugadores; k++ ) {
-        if( poll.getSocketPortable( k + 1 )->send( buffer_j[k], 65, 0 ) < 0 ) {
+        if( poll.getSocketPortable( k + 1 )->send( buffers_jugadores[k], 65, 0 ) < 0 ) {
             removerJugador( k, poll, jugadores, cantidadJugadores );
             k--;
         }
