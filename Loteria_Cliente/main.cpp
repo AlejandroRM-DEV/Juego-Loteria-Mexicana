@@ -203,7 +203,7 @@ bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
         Si no se puede crear el socket cerramos la aplicacion, no podriamos continuar
     */
     if( !credencial->dameSocket()->socket( AF_INET, SOCK_STREAM, 0 ) ) {
-        cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+        //cout << credencial->dameSocket()->getLastErrorMessage() << endl;
         terminado = true;
         retorno = false;
     }
@@ -292,12 +292,12 @@ bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
                 }
             } else if ( totalBytes < 0 ) {
                 if ( !credencial->dameSocket()->nonBlockNoError() ) {
-                    cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+                    //cout << credencial->dameSocket()->getLastErrorMessage() << endl;
                     terminado = true;
                     retorno = false;
                 }
             } else {
-                cout << "Conexion cerrada" << endl;
+                //cout << "Conexion cerrada" << endl;
                 terminado = true;
                 retorno = false;
             }
@@ -361,12 +361,12 @@ bool pantallaSalaPrevia( SDL_Renderer *renderer, Credencial *credencial, Tablero
             }
         } else if ( totalBytes < 0 ) {
             if ( !credencial->dameSocket()->nonBlockNoError() ) {
-                cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+               // cout << credencial->dameSocket()->getLastErrorMessage() << endl;
                 retorno = false;
                 listo = true;
             }
         } else {
-            cout << "Conexion cerrada" << endl;
+            //cout << "Conexion cerrada" << endl;
             retorno = false;
             listo = true;
         }
@@ -456,11 +456,11 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
                 }
             } else if ( totalBytes < 0 ) {
                 if ( !credencial->dameSocket()->nonBlockNoError() ) {
-                    cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+                    //cout << credencial->dameSocket()->getLastErrorMessage() << endl;
                     terminado = salir = true;
                 }
             } else {
-                cout << "Conexion cerrada" << endl;
+                //cout << "Conexion cerrada" << endl;
                 terminado = salir = true;
             }
             if( terminado && !salir ) {

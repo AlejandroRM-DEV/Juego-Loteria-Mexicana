@@ -11,7 +11,7 @@
 #include "Poll.h"
 
 #define TAMANO_BUFFER 128
-#define TOTAL_JUGADORES 2
+#define TOTAL_JUGADORES 4
 
 #define ERROR_SOCKET -1
 #define ERROR_POLL -2
@@ -33,7 +33,7 @@ struct Jugador {
     char nombre[10];
     uint16_t ganados;
     char cartas[16];
-    SocketPortable* socekt;
+    SocketPortable* socket;
 };
 
 void removerJugador( int i, Poll &poll, struct Jugador* jugadores, int &cantidadJugadores );
@@ -96,7 +96,7 @@ int main() {
                             break;
                         }
                         poll.add( sockNuevo, POLLIN, 0 );
-                        jugadores[cantidadJugadores].socekt = sockNuevo;
+                        jugadores[cantidadJugadores].socket = sockNuevo;
                         cantidadJugadores++;
                     } else {
                         delete sockNuevo;
