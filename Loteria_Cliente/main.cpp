@@ -42,6 +42,8 @@ static Imagen imgtxtNombre( -1, "img/txt/nombre_jugador.PNG" );
 static Imagen imgtxtLanzada( -1, "img/txt/lanzada.PNG" );
 static Imagen imgtxtServidor( -1, "img/txt/servidor.PNG" );
 
+bool sdl_quit = false;
+
 string formatoJugador( string nombre, int ganados );
 vector<Imagen*> generarCartas( );
 vector<SDL_Texture*> crearFondosPantalla( SDL_Renderer *renderer );
@@ -55,6 +57,7 @@ SDL_Color colorMarcador( const char* nombre, const char* nombrePropio );
 SDL_Texture* texturaTexto( const string &texto, SDL_Color color, int tamano, SDL_Renderer *renderer );
 
 int main( int argc, char **argv ) {
+    Credencial* credencial;
     SDL_Init( SDL_INIT_VIDEO );
     IMG_Init( IMG_INIT_PNG );
     IMG_Init( IMG_INIT_JPG );
@@ -65,13 +68,13 @@ int main( int argc, char **argv ) {
     SDL_Renderer *renderer = SDL_CreateRenderer( window, -1, 0 );
     SDL_Surface *icon = IMG_Load( "img/icono.PNG" );
     SDL_SetWindowIcon( window, icon );
-
-    Credencial* credencial = new Credencial();
-    if( pantallaInicio( credencial, renderer ) ) {
-        pantallaJuego( renderer, credencial );
-    }
-    delete credencial;
-
+    do {
+        credencial = new Credencial();
+        if( pantallaInicio( credencial, renderer ) ) {
+            pantallaJuego( renderer, credencial );
+        }
+        delete credencial;
+    } while( !sdl_quit );
     SDL_DestroyRenderer( renderer );
     SDL_DestroyWindow( window );
     TTF_Quit();
@@ -211,7 +214,7 @@ bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
         while ( SDL_PollEvent( &event ) ) {
             switch ( event.type ) {
             case SDL_QUIT:
-                terminado = true;
+                sdl_quit = terminado = true;
                 retorno = false;
             case SDL_KEYDOWN:
                 if( event.key.keysym.sym == SDLK_BACKSPACE ) {
@@ -244,7 +247,8 @@ bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
                         } else if( textoIngresado.size() > 10 ) {
                             error = true;
                             msjErrorLen = 46;
-                            texturaError = texturaTexto(  "Maximo 10 caracteres para el nombre de jugador", SDL_Color { 0, 0, 0, 255 }, 24, renderer );
+                            texturaError = texturaTexto(  "Maximo 10 caracteres para el nombre de jugador", SDL_Color { 0, 0, 0, 255 }, 24,
+                                                          renderer );
                         } else {
                             comando  = NOMBRE_REG;
                             memset( buffer, 0, sizeof( buffer ) );
@@ -303,7 +307,7 @@ bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
         }
 
         texturaEnCuadro( texturaTextoIngresado, renderer, ( 400 - textoIngresado.size() * 7 ), 360,
-                             textoIngresado.size() * 14, 40 );
+                         textoIngresado.size() * 14, 40 );
 
         SDL_RenderPresent( renderer );
         SDL_Delay( 25 );
@@ -342,7 +346,7 @@ bool pantallaSalaPrevia( SDL_Renderer *renderer, Credencial *credencial, Tablero
             switch ( event.type ) {
             case SDL_QUIT:
                 retorno = false;
-                listo = true;
+                sdl_quit = listo = true;
                 break;
             }
         }
@@ -419,7 +423,7 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
             while ( SDL_PollEvent( &event ) ) {
                 switch ( event.type ) {
                 case SDL_QUIT:
-                    salir = true;
+                    sdl_quit = salir = true;
                     terminado = true;
                     break;
                 case SDL_MOUSEBUTTONDOWN:

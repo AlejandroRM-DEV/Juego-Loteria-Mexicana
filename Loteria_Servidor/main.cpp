@@ -147,6 +147,7 @@ int main() {
                                         poll.getSocketPortable( k + 1 )->send( buffer, 11, 0 );
                                     }
                                     cout << "Loteria de " << jugadores[i - 1].nombre << endl;
+                                    jugadores[i - 1].ganados++;
                                     partidaIniciada = false;
                                     jugadoresListos = ( cantidadJugadores == TOTAL_JUGADORES );
                                     tiempo_inicio = reloj::now();
@@ -169,7 +170,10 @@ int main() {
             } else if ( conexion < 0 ) {
                 throw ERROR_POLL;
             }
-
+            if( partidaIniciada && cantidadJugadores == 0 ) {
+                cout << "Juego terminado por falta de jugadores" << endl;
+                partidaIniciada = jugadoresListos = false;
+            }
             if( !partidaIniciada && jugadoresListos ) {
                 if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 10 ) {
                     anunciarPartida( poll, jugadores, cantidadJugadores );
@@ -181,8 +185,7 @@ int main() {
                     }
                     tiempo_inicio = reloj::now();
                 }
-            }
-            if( partidaIniciada ) {
+            } else if( partidaIniciada ) {
                 if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 0.5 ) {
                     if( !arraylanzar.empty() ) {
                         cmd = LANZAMIENTO;
@@ -220,12 +223,12 @@ int main() {
 
 
 void removerJugador( int i, Poll &poll, struct Jugador* jugadores, int &cantidadJugadores ) {
-    cout << "El cliente (fd: " << poll.getSocketPortable( i + 1 )->getFD() << ") ha abandonado" << endl;
+    cout << "El jugador " << jugadores[i].nombre << " ha abandonado" << endl;
     jugadores[i] = jugadores[cantidadJugadores - 1];
     jugadores[cantidadJugadores - 1] = { {0}, 0, {0}, nullptr };
     cantidadJugadores--;
     delete poll.getSocketPortable( i + 1 );
-    poll.remove( ( i-- ) + 1 );
+    poll.remove( i + 1 );
 }
 
 void anunciarPartida( Poll &poll, struct Jugador *jugadores, int &cantidadJugadores ) {
