@@ -13,6 +13,7 @@
 #define TAMANO_BUFFER 128
 #define TOTAL_JUGADORES 4
 #define TAMANO_NOMBRE 10
+#define INTERVALO_SEGUNDOS 1
 
 #define ERROR_SOCKET -1
 #define ERROR_POLL -2
@@ -31,7 +32,7 @@ vector<unsigned char> cartas;
 vector<unsigned char> arraylanzar;
 
 struct Jugador {
-    char nombre[10+1];
+    char nombre[TAMANO_NOMBRE + 1];
     int16_t ganados;
     char cartas[16];
     SocketPortable* socket;
@@ -147,7 +148,7 @@ int main() {
                                     memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
                                     memcpy( &buffer[1], &jugadores[i - 1].nombre, TAMANO_NOMBRE );
                                     for( int k = 0; k < cantidadJugadores; k++ ) {
-                                        poll.getSocketPortable( k + 1 )->send( buffer, TAMANO_NOMBRE+1, 0 );
+                                        poll.getSocketPortable( k + 1 )->send( buffer, TAMANO_NOMBRE + 1, 0 );
                                     }
                                     partidaIniciada = false;
                                     jugadoresListos = ( cantidadJugadores == TOTAL_JUGADORES );
@@ -189,7 +190,7 @@ int main() {
                     tiempo_inicio = reloj::now();
                 }
             } else if( partidaIniciada ) {
-                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 0.2 ) {
+                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > INTERVALO_SEGUNDOS ) {
                     if( !arraylanzar.empty() ) {
                         cmd = LANZAMIENTO;
                         memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
