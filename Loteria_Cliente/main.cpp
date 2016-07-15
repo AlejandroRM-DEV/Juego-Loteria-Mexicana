@@ -15,6 +15,7 @@
 
 #define SIZE_OF_STRUCT_TABLERO 48
 #define TOTAL_CARTAS 16
+#define TAMANO_NOMBRE 10
 #define TAMANO_BUFFER 128
 
 using namespace std;
@@ -22,13 +23,13 @@ using namespace std;
 enum Comandos : unsigned char { NOMBRE_REG, NOMBRE_OK, NOMBRE_OCUPADO, NUEVA_PARTIDA, LANZAMIENTO, LOTERIA, GANADOR};
 
 struct Marcador {
-    char nombre1[10];
+    char nombre1[TAMANO_NOMBRE + 1];
     int16_t ganados1;
-    char nombre2[10];
+    char nombre2[TAMANO_NOMBRE + 1];
     int16_t ganados2;
-    char nombre3[10];
+    char nombre3[TAMANO_NOMBRE + 1];
     int16_t ganados3;
-    char nombre4[10];
+    char nombre4[TAMANO_NOMBRE + 1];
     int16_t ganados4;
 };
 
@@ -44,7 +45,7 @@ static Imagen imgtxtServidor( -1, "img/txt/servidor.PNG" );
 
 bool sdl_quit = false;
 
-string formatoJugador( string nombre, int ganados );
+string formatoJugador( string nombre, uint16_t ganados );
 vector<Imagen*> generarCartas( );
 vector<SDL_Texture*> crearFondosPantalla( SDL_Renderer *renderer );
 bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer );
@@ -127,7 +128,7 @@ vector<SDL_Texture*> crearFondosPantalla( SDL_Renderer *renderer ) {
     return texturas;
 }
 
-string formatoJugador( string nombre, int ganados ) {
+string formatoJugador( string nombre, uint16_t ganados ) {
     stringstream ss;
     ss << nombre  << setw( 8 ) << setfill( '_' ) << ganados;
     return ss.str();
@@ -143,15 +144,20 @@ void crearMarcador( char* bytesJugadores, string jugadorLocal, SDL_Renderer *ren
     struct Marcador marcador;
     vector<SDL_Texture*> texturasJugadores;
     SDL_Color color;
-
-    memcpy( &marcador.nombre1, &bytesJugadores[0], 10 );
+    memset( &marcador, 0, sizeof ( Marcador ) );
+    memcpy( &marcador.nombre1, &bytesJugadores[0], TAMANO_NOMBRE );
     memcpy( &marcador.ganados1, &bytesJugadores[10], 2 );
-    memcpy( &marcador.nombre2, &bytesJugadores[12], 10 );
+    memcpy( &marcador.nombre2, &bytesJugadores[12], TAMANO_NOMBRE );
     memcpy( &marcador.ganados2, &bytesJugadores[22], 2 );
-    memcpy( &marcador.nombre3, &bytesJugadores[24], 10 );
+    memcpy( &marcador.nombre3, &bytesJugadores[24], TAMANO_NOMBRE );
     memcpy( &marcador.ganados3, &bytesJugadores[34],  2 );
-    memcpy( &marcador.nombre4, &bytesJugadores[36], 10 );
+    memcpy( &marcador.nombre4, &bytesJugadores[36], TAMANO_NOMBRE );
     memcpy( &marcador.ganados4, &bytesJugadores[46], 2 );
+
+    marcador.ganados1 = ntohs( marcador.ganados1 );
+    marcador.ganados2 = ntohs( marcador.ganados2 );
+    marcador.ganados3 = ntohs( marcador.ganados3 );
+    marcador.ganados4 = ntohs( marcador.ganados4 );
 
     color = colorMarcador( marcador.nombre1, jugadorLocal.c_str() );
     texturasJugadores.push_back(
@@ -244,7 +250,7 @@ bool pantallaInicio( Credencial* credencial, SDL_Renderer *renderer ) {
                             error = true;
                             msjErrorLen = 32;
                             texturaError = texturaTexto(  "Debe elegir un nombre de jugador", SDL_Color { 0, 0, 0, 255 }, 24, renderer );
-                        } else if( textoIngresado.size() > 10 ) {
+                        } else if( textoIngresado.size() > TAMANO_NOMBRE ) {
                             error = true;
                             msjErrorLen = 46;
                             texturaError = texturaTexto(  "Maximo 10 caracteres para el nombre de jugador", SDL_Color { 0, 0, 0, 255 }, 24,
@@ -361,7 +367,7 @@ bool pantallaSalaPrevia( SDL_Renderer *renderer, Credencial *credencial, Tablero
             }
         } else if ( totalBytes < 0 ) {
             if ( !credencial->dameSocket()->nonBlockNoError() ) {
-               // cout << credencial->dameSocket()->getLastErrorMessage() << endl;
+                // cout << credencial->dameSocket()->getLastErrorMessage() << endl;
                 retorno = false;
                 listo = true;
             }
@@ -392,7 +398,7 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
     SDL_Texture *texturaTxtLanzada, *texturaCartaLanzada, *texturaGanador, *texturaLoteria;
     SDL_Rect rectCartaLanzada = { 515, 70, 228, 350 };
     SDL_Event event;
-    char buffer[TAMANO_BUFFER], ganador[10];
+    char buffer[TAMANO_BUFFER], ganador[TAMANO_NOMBRE + 1];
     bool terminado, salir, habilitaBoton;
     unsigned char carta;
     int totalBytes;
@@ -452,7 +458,7 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
                     SDL_DestroyTexture( texturaCartaLanzada );
                 } else if( comando == GANADOR ) {
                     terminado = true;
-                    memcpy( &ganador, &buffer[1], 10 );
+                    memcpy( &ganador, &buffer[1], TAMANO_NOMBRE );
                 }
             } else if ( totalBytes < 0 ) {
                 if ( !credencial->dameSocket()->nonBlockNoError() ) {

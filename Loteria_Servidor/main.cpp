@@ -12,6 +12,7 @@
 
 #define TAMANO_BUFFER 128
 #define TOTAL_JUGADORES 4
+#define TAMANO_NOMBRE 10
 
 #define ERROR_SOCKET -1
 #define ERROR_POLL -2
@@ -30,8 +31,8 @@ vector<unsigned char> cartas;
 vector<unsigned char> arraylanzar;
 
 struct Jugador {
-    char nombre[10];
-    uint16_t ganados;
+    char nombre[10+1];
+    int16_t ganados;
     char cartas[16];
     SocketPortable* socket;
 };
@@ -115,12 +116,10 @@ int main() {
                                     nombreRegistrado = memcmp( &jugadores[k].nombre, &buffer[1], 10 ) == 0;
                                 }
                                 if( !nombreRegistrado ) {
-                                    memcpy( &jugadores[i - 1].nombre, &buffer[1], 10 ); // leido-1
+                                    memcpy( &jugadores[i - 1].nombre, &buffer[1], TAMANO_NOMBRE ); // leido-1
+                                    jugadores[i - 1].ganados = 0;
                                     cmd = NOMBRE_OK;
-                                    cout << "Jugador: ";
-                                    for( int p = 1; p < leido; p++ )
-                                        cout << buffer[p];
-                                    cout << " registrado" << endl;
+                                    cout << "Jugador: " << jugadores[i - 1].nombre << " registrado" << endl;
                                     jugadoresListos = ( cantidadJugadores == TOTAL_JUGADORES );
                                     tiempo_inicio = reloj::now();
                                 } else {
@@ -141,17 +140,20 @@ int main() {
                                 }
                                 if( ganador ) {
                                     cmd = GANADOR;
-                                    memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
-                                    memcpy( &buffer[1], &jugadores[i - 1].nombre, 10 );
-                                    for( int k = 0; k < cantidadJugadores; k++ ) {
-                                        poll.getSocketPortable( k + 1 )->send( buffer, 11, 0 );
-                                    }
-                                    cout << "Loteria de " << jugadores[i - 1].nombre << endl;
+                                    cout << "Loteria de \"" << jugadores[i - 1].nombre << "\"" << endl;
                                     jugadores[i - 1].ganados++;
+
+                                    memset( &buffer, 0, sizeof( buffer ) );
+                                    memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
+                                    memcpy( &buffer[1], &jugadores[i - 1].nombre, TAMANO_NOMBRE );
+                                    for( int k = 0; k < cantidadJugadores; k++ ) {
+                                        poll.getSocketPortable( k + 1 )->send( buffer, TAMANO_NOMBRE+1, 0 );
+                                    }
                                     partidaIniciada = false;
                                     jugadoresListos = ( cantidadJugadores == TOTAL_JUGADORES );
                                     tiempo_inicio = reloj::now();
                                 }
+
                                 break;
                             case NOMBRE_OK:
                             case NOMBRE_OCUPADO:
@@ -175,9 +177,10 @@ int main() {
                 partidaIniciada = jugadoresListos = false;
             }
             if( !partidaIniciada && jugadoresListos ) {
-                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 10 ) {
+                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 6 ) {
                     anunciarPartida( poll, jugadores, cantidadJugadores );
                     partidaIniciada = true;
+                    jugadoresListos = false;
                     mt19937 g( static_cast<uint32_t>( time( nullptr ) ) );
                     shuffle( cartas.begin(), cartas.end(), g );
                     for( unsigned char i : cartas ) {
@@ -186,7 +189,7 @@ int main() {
                     tiempo_inicio = reloj::now();
                 }
             } else if( partidaIniciada ) {
-                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 0.5 ) {
+                if( std::chrono::duration_cast<std::chrono::seconds>( reloj::now() - tiempo_inicio ).count() > 0.2 ) {
                     if( !arraylanzar.empty() ) {
                         cmd = LANZAMIENTO;
                         memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
@@ -235,18 +238,27 @@ void anunciarPartida( Poll &poll, struct Jugador *jugadores, int &cantidadJugado
     Comandos cmd;
     char buffers_jugadores[TOTAL_JUGADORES][65];
     char buffer[49];
+    uint16_t networkOrder;
 
     cmd = NUEVA_PARTIDA;
     memset( buffer, 0, sizeof( buffer ) );
+    memset( buffers_jugadores, 0, sizeof( buffers_jugadores ) );
     memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
-    memcpy( &buffer[1], &jugadores[0].nombre, 10 );
-    memcpy( &buffer[11], &jugadores[0].ganados, 2 );
-    memcpy( &buffer[13], &jugadores[1].nombre, 10 );
-    memcpy( &buffer[23], &jugadores[1].ganados, 2 );
-    memcpy( &buffer[25], &jugadores[2].nombre, 10 );
-    memcpy( &buffer[35], &jugadores[2].ganados, 2 );
-    memcpy( &buffer[37], &jugadores[3].nombre, 10 );
-    memcpy( &buffer[47], &jugadores[3].ganados, 2 );
+    memcpy( &buffer[1], &jugadores[0].nombre, TAMANO_NOMBRE );
+    networkOrder = htons( jugadores[0].ganados );
+    memcpy( &buffer[11], &networkOrder, 2 );
+
+    memcpy( &buffer[13], &jugadores[1].nombre, TAMANO_NOMBRE );
+    networkOrder = htons( jugadores[1].ganados );
+    memcpy( &buffer[23], &networkOrder, 2 );
+
+    memcpy( &buffer[25], &jugadores[2].nombre, TAMANO_NOMBRE );
+    networkOrder = htons( jugadores[2].ganados );
+    memcpy( &buffer[35], &networkOrder, 2 );
+
+    memcpy( &buffer[37], &jugadores[3].nombre, TAMANO_NOMBRE );
+    networkOrder = htons( jugadores[3].ganados );
+    memcpy( &buffer[47], &networkOrder, 2 );
 
     memcpy( &buffers_jugadores[0], &buffer, 49 );
     memcpy( &buffers_jugadores[1], &buffer, 49 );
@@ -256,7 +268,7 @@ void anunciarPartida( Poll &poll, struct Jugador *jugadores, int &cantidadJugado
     for( int k = 0, q = 0; k < cantidadJugadores; k++, q = 0 ) {
         mt19937 mt( static_cast<uint32_t>( time( nullptr ) ) );
         shuffle( cartas.begin(), cartas.end(), mt );
-        cout << "Generando cartas del jugador: " << jugadores[k].nombre << "\r\n\t";
+        cout << "Generando cartas del jugador \"" << jugadores[k].nombre << "\"\r\n\t";
         for( int i = 49; i < 65; i++, q++ ) {
             cout << ( unsigned int ) cartas[q] << " ";
             memcpy( &buffers_jugadores[k][i], &cartas[q], 1 );
