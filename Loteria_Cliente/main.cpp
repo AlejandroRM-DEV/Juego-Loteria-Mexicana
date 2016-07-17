@@ -458,6 +458,7 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
                     SDL_DestroyTexture( texturaCartaLanzada );
                 } else if( comando == GANADOR ) {
                     terminado = true;
+                    memset( ganador, 0, sizeof(ganador));
                     memcpy( &ganador, &buffer[1], TAMANO_NOMBRE );
                 }
             } else if ( totalBytes < 0 ) {
