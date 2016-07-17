@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cstdint>
 
-#include <SDL_ttf.h>
+#include <SDL2/SDL_ttf.h>
 
 #include "Boton.h"
 #include "Tablero.h"
@@ -33,15 +33,15 @@ struct Marcador {
     int16_t ganados4;
 };
 
-static Imagen imgFondo1( -1, "img/presentacion.JPG" );
-static Imagen imgFondo2( -1, "img/todas1.PNG" );
-static Imagen imgFondo3( -1, "img/todas2.PNG" );
-static Imagen imgtxtTitulo( -1, "img/txt/titulo.PNG" );
-static Imagen imgtxtLoteria( -1, "img/txt/loteria.PNG" );
-static Imagen imgtxtEsperando( -1, "img/txt/esperando_jugadores.PNG" );
-static Imagen imgtxtNombre( -1, "img/txt/nombre_jugador.PNG" );
-static Imagen imgtxtLanzada( -1, "img/txt/lanzada.PNG" );
-static Imagen imgtxtServidor( -1, "img/txt/servidor.PNG" );
+static Imagen imgFondo1( -1, "img/presentacion.jpg" );
+static Imagen imgFondo2( -1, "img/todas1.png" );
+static Imagen imgFondo3( -1, "img/todas2.png" );
+static Imagen imgtxtTitulo( -1, "img/txt/titulo.png" );
+static Imagen imgtxtLoteria( -1, "img/txt/loteria.png" );
+static Imagen imgtxtEsperando( -1, "img/txt/esperando_jugadores.png" );
+static Imagen imgtxtNombre( -1, "img/txt/nombre_jugador.png" );
+static Imagen imgtxtLanzada( -1, "img/txt/lanzada.png" );
+static Imagen imgtxtServidor( -1, "img/txt/servidor.png" );
 
 bool sdl_quit = false;
 
@@ -67,7 +67,7 @@ int main( int argc, char **argv ) {
     SDL_Window *window = SDL_CreateWindow( "Loteria Mexicana", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                            VENTANA_ANCHO, VENTANA_ALTO, 0 );
     SDL_Renderer *renderer = SDL_CreateRenderer( window, -1, 0 );
-    SDL_Surface *icon = IMG_Load( "img/icono.PNG" );
+    SDL_Surface *icon = IMG_Load( "img/icono.png" );
     SDL_SetWindowIcon( window, icon );
     do {
         credencial = new Credencial();
@@ -89,7 +89,7 @@ vector<Imagen*> generarCartas( ) {
     vector<Imagen*> cartas( 54 );
     for( int i = 0; i < 54; i++ ) {
         stringstream ss;
-        ss << "img/cartas/" << ( i + 1 )  << ".JPG";
+        ss << "img/cartas/" << ( i + 1 )  << ".jpg";
         cartas[i] = new Imagen( ( i + 1 ), ss.str() );
     }
     return cartas;
@@ -404,7 +404,7 @@ void pantallaJuego( SDL_Renderer * renderer, Credencial * credencial ) {
     int totalBytes;
     Comandos comando;
     vector<Imagen*> cartas;
-    Boton btnLoteria( 528, 440, 200, 50, "img/botonLoteria.PNG", renderer );
+    Boton btnLoteria( 528, 440, 200, 50, "img/botonLoteria.png", renderer );
     Tablero tablero( renderer );
 
     SDL_SetRenderDrawColor( renderer, 255, 255, 255, SDL_ALPHA_OPAQUE  );

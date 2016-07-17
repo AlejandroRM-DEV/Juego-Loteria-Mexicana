@@ -25,11 +25,13 @@ SOFTWARE.
 
 Poll::Poll( size_t capacity ) {
     length = 0;
+    this->capacity = capacity;
     sockets.sp = new SocketPortable*[capacity];
     sockets.poll_fd = new pollfd[capacity];
 }
 bool Poll::add( SocketPortable* sock, short events, short revents ) {
     if ( length == capacity ) {
+        cout << "false" << endl;
         return false;
     } else {
         sockets.sp[length] = sock;

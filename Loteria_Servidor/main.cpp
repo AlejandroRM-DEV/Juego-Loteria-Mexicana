@@ -11,7 +11,7 @@
 #include "Poll.h"
 
 #define TAMANO_BUFFER 128
-#define TOTAL_JUGADORES 4
+#define TOTAL_JUGADORES 2
 #define TAMANO_NOMBRE 10
 #define INTERVALO_SEGUNDOS 1
 
@@ -244,10 +244,16 @@ void anunciarPartida( Poll &poll, struct Jugador *jugadores, int &cantidadJugado
     cmd = NUEVA_PARTIDA;
     memset( buffer, 0, sizeof( buffer ) );
     memset( buffers_jugadores, 0, sizeof( buffers_jugadores ) );
+
     memcpy( &buffer, reinterpret_cast<const char*>( &cmd ), 1 );
-    memcpy( &buffer[1], &jugadores[0].nombre, TAMANO_NOMBRE );
-    networkOrder = htons( jugadores[0].ganados );
-    memcpy( &buffer[11], &networkOrder, 2 );
+
+    for( int k = 0, n = 1, g = n + 10; k < cantidadJugadores; k++, n = g + 2, g = n + 10 ) {
+        memcpy( &buffer[n], &jugadores[k].nombre, TAMANO_NOMBRE );
+        networkOrder = htons( jugadores[k].ganados );
+        memcpy( &buffer[g], &networkOrder, 2 );
+    }
+
+    /*
 
     memcpy( &buffer[13], &jugadores[1].nombre, TAMANO_NOMBRE );
     networkOrder = htons( jugadores[1].ganados );
@@ -266,6 +272,10 @@ void anunciarPartida( Poll &poll, struct Jugador *jugadores, int &cantidadJugado
     memcpy( &buffers_jugadores[2], &buffer, 49 );
     memcpy( &buffers_jugadores[3], &buffer, 49 );
 
+    */
+    for( int k = 0; k < cantidadJugadores; k++ ) {
+        memcpy( &buffers_jugadores[k], &buffer, 49 );
+    }
     for( int k = 0, q = 0; k < cantidadJugadores; k++, q = 0 ) {
         mt19937 mt( static_cast<uint32_t>( time( nullptr ) ) );
         shuffle( cartas.begin(), cartas.end(), mt );

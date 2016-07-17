@@ -190,6 +190,7 @@ bool SocketPortable::connect( const char *node, const char *service,
     for ( rp = res; rp != nullptr; rp = rp->ai_next ) {
         if ( socket( rp->ai_family, rp->ai_socktype, rp->ai_protocol ) ) {
             if ( connect( rp->ai_addr, rp->ai_addrlen ) ) {
+                cout << "Conectado" << endl;
                 break;
             }
         }

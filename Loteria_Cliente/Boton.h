@@ -1,7 +1,7 @@
 #ifndef BOTON_H_INCLUDED
 #define BOTON_H_INCLUDED
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include "Imagen.h"
 
 class Boton {
